@@ -13,6 +13,7 @@
 
 - [overview.md](./overview.md) — 전체 요구사항 요약
 - [user-requirements.md](./user-requirements.md) — 사용자 관련 기능 요구사항
+- [point-requirements.md](./point-requirements.md) - 포인트 잔고 관련 기능 요구사항
 - [product-requirements.md](./product-requirements.md) — 상품 관련 정책 및 제약
 - [order-policy.md](./order-policy.md) — 주문 처리 흐름 및 예외 정책
 - [coupon-policy.md](./coupon-policy.md) — 쿠폰 발급 및 사용 제한 정책

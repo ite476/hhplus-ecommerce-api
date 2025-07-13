@@ -32,6 +32,7 @@
 | 도메인     | 문서                                                   |
 |---------|------------------------------------------------------|
 | User    | [user-requirements.md](./user-requirements.md)       |
+| Point   | [point-requirements.md](./point-requirements.md)     |
 | Product | [product-requirements.md](./product-requirements.md) |
 | Order   | [order-policy.md](./order-policy.md)                 |
 | Coupon  | [coupon-policy.md](./coupon-policy.md)               |
