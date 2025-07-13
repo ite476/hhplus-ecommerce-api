@@ -1,8 +1,8 @@
-# 개요
+# 🔄 Sequence Diagram
 
 - 주요 기능(행위)들의 시퀀스 다이어그램 모음
 
-# 목록
+# 📋 다이어그램
 
 ### 1. 회원 가입 _Join_
 > 참조: [user-requirements.md](user-requirements.md)

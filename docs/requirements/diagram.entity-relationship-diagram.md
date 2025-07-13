@@ -1,7 +1,8 @@
-# 개요
+# 🗂️ Entity Relationship Diagram
+
 - 전체 도메인에 대한 영속성 저장용 `ER 다이어그램`
 
-# 다이어그램
+# 📋 다이어그램
 
 ```mermaid
 erDiagram
