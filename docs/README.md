@@ -17,12 +17,12 @@ src/main/kotlin/com/example/app/
 
 📄 각 디렉토리의 책임 및 구현 방식은 하위 문서에서 상세히 확인할 수 있습니다.
 
-| 폴더            | 역할 요약                             | 문서 링크                                                                         |
-|---------------|-----------------------------------|-------------------------------------------------------------------------------|
-| `config/`     | 글로벌 설정 (JPA, Swagger, Security 등) | [README](./config/README.md) / [instruction](./config/instruction.md)         |
-| `controller/` | API 엔트리포인트 및 DTO 처리               | [README](./controller/README.md) / [instruction](./controller/instruction.md) |
-| `core/`       | 도메인 로직, 서비스, 인터페이스 정의             | [README](./core/README.md) / [instruction](./core/instruction.md)             |
-| `database/`   | 실제 데이터 접근/저장 구현체 구성               | [README](./database/README.md) / [instruction](./database/instruction.md)     |
+| 폴더            | 역할 요약                             | 문서 링크                                                                                                                                                   |
+|---------------|-----------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `config/`     | 글로벌 설정 (JPA, Swagger, Security 등) | [README](../src/main/kotlin/kr/hhplus/be/server/config/README.md) / [instruction](../src/main/kotlin/kr/hhplus/be/server/config/instruction.md)         |
+| `controller/` | API 엔트리포인트 및 DTO 처리               | [README](../src/main/kotlin/kr/hhplus/be/server/controller/README.md) / [instruction](../src/main/kotlin/kr/hhplus/be/server/controller/instruction.md) |
+| `core/`       | 도메인 로직, 서비스, 인터페이스 정의             | [README](../src/main/kotlin/kr/hhplus/be/server/core/README.md) / [instruction](../src/main/kotlin/kr/hhplus/be/server/core/instruction.md)             |
+| `database/`   | 실제 데이터 접근/저장 구현체 구성               | [README](../src/main/kotlin/kr/hhplus/be/server/database/README.md) / [instruction](../src/main/kotlin/kr/hhplus/be/server/database/instruction.md)     |
 
 ---
 

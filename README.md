@@ -28,7 +28,7 @@ docker-compose up -d
 - 선착순 쿠폰 발급 / 조회 / 주문 시 사용
 - 최근 3일간 인기 상품 통계 조회
 
-> 요구사항 전체는 [📂 docs/requirements](./docs/requirements/) 폴더에서 확인할 수 있습니다.
+> 요구사항 전체는 [📂 docs/requirements](docs/requirements) 폴더에서 확인할 수 있습니다.
 
 ---
 
@@ -52,12 +52,12 @@ src/main/kotlin/com/example/app/
 
 폴더별 세부 규칙은 아래 문서를 참고하세요:
 
-| 폴더         | 문서                                                                                                                                           |
-|------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| config     | [README](./src/main/kotlin/com/example/app/config/README.md), [instruction](./src/main/kotlin/com/example/app/config/instruction.md)         |
-| controller | [README](./src/main/kotlin/com/example/app/controller/README.md), [instruction](./src/main/kotlin/com/example/app/controller/instruction.md) |
-| core       | [README](./src/main/kotlin/com/example/app/core/README.md), [instruction](./src/main/kotlin/com/example/app/core/instruction.md)             |
-| database   | [README](./src/main/kotlin/com/example/app/database/README.md), [instruction](./src/main/kotlin/com/example/app/database/instruction.md)     |
+| 폴더         | 문서                                                                                                                                                 |
+|------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| config     | [README](src/main/kotlin/kr/hhplus/be/server/config/README.md), [instruction](./src/main/kotlin/kr/hhplus/be/server/config/instruction.md)         |
+| controller | [README](src/main/kotlin/kr/hhplus/be/server/controller/README.md), [instruction](./src/main/kotlin/kr/hhplus/be/server/controller/instruction.md) |
+| core       | [README](src/main/kotlin/kr/hhplus/be/server/core/README.md), [instruction](./src/main/kotlin/kr/hhplus/be/server/core/instruction.md)             |
+| database   | [README](src/main/kotlin/kr/hhplus/be/server/database/README.md), [instruction](./src/main/kotlin/kr/hhplus/be/server/database/instruction.md)     |
 
 ---
 
@@ -117,4 +117,4 @@ src/main/kotlin/com/example/app/
 
 - [📖 요구사항 정리](./docs/requirements/overview.md)
 - [📎 drafts/](./docs/drafts/) – 논의 중인 정책 또는 결정 대기 항목 (WIP)
-- [📋 GitHub Issues](https://github.com/your-org/your-repo/issues) – 기능 요청 / 버그 추적 / 정책 변경
+- [📋 GitHub Issues](https://github.com/ite476/hhplus-ecommerce-api/issues) – 기능 요청 / 버그 추적 / 정책 변경
