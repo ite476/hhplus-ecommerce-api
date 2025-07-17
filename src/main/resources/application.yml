@@ -20,6 +20,12 @@ spring:
     properties:
       hibernate.timezone.default_storage: NORMALIZE_UTC
       hibernate.jdbc.time_zone: UTC
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs.yaml
+  swagger-ui:
+    enabled: true
 
 ---
 spring.config.activate.on-profile: local, test
