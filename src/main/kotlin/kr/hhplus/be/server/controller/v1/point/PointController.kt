@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.net.URI
+
 @RestController
 @RequestMapping("/api/v1/point")
 @Tag(name = "Point API", description = "포인트 API")
@@ -45,7 +47,8 @@ class PointController {
     fun chargePoint(
         @RequestHeader userId: String,
         @RequestBody body: PatchPointChargeRequestBody
-    ) : ResponseEntity<Object> = ResponseEntity.ok(null)
+    ) : ResponseEntity<Object> = ResponseEntity.created(URI.create("/point"))
+        .build()
 
     @GetMapping("")
     @Operation(
@@ -83,5 +86,8 @@ class PointController {
     )
     fun readPoint(
         @RequestHeader userId: String
-    ) : ResponseEntity<GetPointResponse> = ResponseEntity.ok(null)
+    ) : ResponseEntity<GetPointResponse> = ResponseEntity.ok(GetPointResponse(
+        userId = 1,
+        ponit = 2_755_003_000,
+    ))
 }
