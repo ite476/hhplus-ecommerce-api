@@ -51,7 +51,14 @@ class ProductController {
             ),
         ]
     )
-    fun getProducts(): ResponseEntity<List<GetProductsResponse>> = ResponseEntity.ok(null)
+    fun getProducts(): ResponseEntity<List<GetProductsResponse>> = ResponseEntity.ok(listOf(
+        GetProductsResponse(
+            id = 1,
+            name = "갤럭시 Z 플립 7",
+            price = 1_456_000,
+            stock = 600,
+        )
+    ))
 
     @GetMapping("/popular")
     @Operation(
@@ -89,5 +96,14 @@ class ProductController {
             ),
         ]
     )
-    fun getPopularProducts(): ResponseEntity<List<GetProductsPopularResponse>> = ResponseEntity.ok(null)
+    fun getPopularProducts(): ResponseEntity<List<GetProductsPopularResponse>> = ResponseEntity.ok(listOf(
+        GetProductsPopularResponse(
+            id = 1,
+            name = "람보르기니 우라칸",
+            price = 344_600_000,
+            stock = 3,
+            rank = 1,
+            sold = 7,
+        )
+    ))
 }
