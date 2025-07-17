@@ -16,6 +16,11 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.util.Date
 
 @RestController
 @RequestMapping("/api/v1")
@@ -82,7 +87,25 @@ class CouponController {
     )
     fun getMyCoupons(
         @RequestHeader userId: Long
-    ): ResponseEntity<GetMyCouponsResponse> = ResponseEntity.ok(null)
+    ): ResponseEntity<GetMyCouponsResponse> = ResponseEntity.ok(
+        GetMyCouponsResponse(
+            coupons = listOf(
+                MyCouponInfo(
+                    couponId = 1,
+                    couponName = "아무튼할인쿠폰",
+                    discountAmount = 5000,
+                    isUsable = true,
+                    expirationDate = Date.from(
+                        LocalDate.parse("2025-01-23")
+                            .atStartOfDay(ZoneId.of("Asia/Seoul"))
+                            .toInstant()
+                    ),
+                    issuedAt = ZonedDateTime.of(2025, 1, 23, 0, 0, 0, 0, ZoneOffset.of("+09:00")),
+                    usedAt = ZonedDateTime.of(2025, 1, 23, 0, 0, 0, 0, ZoneOffset.of("+09:00")),
+                ),
+            ),
+        )
+    )
 
     @PostMapping("/coupon/{couponId}")
     @Operation(
@@ -165,5 +188,17 @@ class CouponController {
     fun issueCoupon(
         @RequestHeader userId: Long,
         @PathVariable couponId: Long
-    ): ResponseEntity<PostCouponIssueResponse> = ResponseEntity.ok(null)
+    ): ResponseEntity<PostCouponIssueResponse> = ResponseEntity.ok(
+        PostCouponIssueResponse(
+            couponId = 1,
+            couponName = "할인할인쿠폰",
+            discountAmount = 3000,
+            expirationDate = Date.from(
+                LocalDate.parse("2025-01-23")
+                    .atStartOfDay(ZoneId.of("Asia/Seoul"))
+                    .toInstant()
+            ),
+            issuedAt = ZonedDateTime.of(2025, 1, 23, 0, 0, 0, 0, ZoneOffset.of("+09:00")),
+        )
+    )
 }
