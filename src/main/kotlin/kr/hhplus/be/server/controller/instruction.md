@@ -2,7 +2,8 @@
 
 ## 네이밍 컨벤션
 
-- **Controller 클래스**: `{도메인}Controller.kt`
+- **ApiSpec 인터페이스**: `{도메인}ApiSpec.kt`   
+- **Controller 클래스**: `{도메인}Controller.kt`  
 - **메서드명**: CRUD 중심 (`createUser`, `getUser`)
 - **DTO 클래스**: `{메서드명}Request/Response.kt`
 
@@ -106,6 +107,8 @@ data class UserDto(  // Request와 Response 구분 없음
 - `@Valid` + Bean Validation 활용
 - DTO ↔ Command/Entity 변환 로직 포함
 - ResponseEntity로 상태코드 명시
+- `@Operation`등 API 문서화 정보는 ApiSpec 인터페이스에 관리
+- `@GetMapping`등 API 라우팅 관리는 Controller 클래스에 관리
 
 ### ❌ DON'T
 - Controller에 비즈니스 로직 포함 금지
