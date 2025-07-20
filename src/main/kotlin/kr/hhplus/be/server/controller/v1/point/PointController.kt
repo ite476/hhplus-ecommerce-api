@@ -25,6 +25,6 @@ class PointController
         @RequestHeader userId: String
     ) : ResponseEntity<GetPointResponse> = ResponseEntity.ok(GetPointResponse(
         userId = 1,
-        ponit = 2_755_003_000,
+        point = 2_755_003_000,
     ))
 }
