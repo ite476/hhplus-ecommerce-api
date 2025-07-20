@@ -7,5 +7,5 @@ data class GetPointResponse(
     @field:Schema(description = "회원 로그인 아이디")
     val userId: Long,
     @field:Schema(description = "포인트 잔액")
-    val ponit: Long,
+    val point: Long,
 )
