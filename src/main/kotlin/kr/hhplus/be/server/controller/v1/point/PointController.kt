@@ -15,14 +15,14 @@ class PointController
 
     @PatchMapping("charge")
     override fun chargePoint(
-        @RequestHeader userId: String,
+        @RequestHeader userId: Long,
         @RequestBody body: PatchPointChargeRequestBody
     ) : ResponseEntity<Object> = ResponseEntity.created(URI.create("/point"))
         .build()
 
     @GetMapping("")
     override fun readPoint(
-        @RequestHeader userId: String
+        @RequestHeader userId: Long
     ) : ResponseEntity<GetPointResponse> = ResponseEntity.ok(GetPointResponse(
         userId = 1,
         point = 2_755_003_000,

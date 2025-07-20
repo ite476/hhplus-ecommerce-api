@@ -34,7 +34,7 @@ interface PointApiSpec {
         ]
     )
     fun chargePoint(
-        @RequestHeader userId: String,
+        @RequestHeader userId: Long,
         @RequestBody body: PatchPointChargeRequestBody
     ) : ResponseEntity<Object>
 
@@ -72,6 +72,6 @@ interface PointApiSpec {
         ]
     )
     fun readPoint(
-        @RequestHeader userId: String
+        @RequestHeader userId: Long
     ) : ResponseEntity<GetPointResponse>
 }
