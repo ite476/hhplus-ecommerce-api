@@ -29,14 +29,10 @@ erDiagram
         id Long PK
         user_id Long FK
         coupon_id Long FK
-        status String FK "쿠폰 사용 상태"
+        status Enum FK "쿠폰 사용 상태, ACTIVE, USED, EXPIRED"
         issued_at OffsetDateTime
         used_at OffsetDateTime
         expired_at OffsetDateTime
-    }
-    
-    user_coupon_status {
-        status String PK "쿠폰 사용 상태, ACTIVE, USED, EXPIRED"
     }
     
     order {
@@ -58,7 +54,6 @@ erDiagram
         order_item ||--|| product : "1:1"
     
     user ||--o{ user_coupon : "보유함"
-    user_coupon ||--|| user_coupon_status : "1:1"
     coupon ||--o{ user_coupon : "발급함"
     order ||--o| user_coupon : "적용함"
 ```
