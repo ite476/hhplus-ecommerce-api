@@ -202,6 +202,14 @@ sequenceDiagram
         end
     end
 
+    Service ->> Service: 선착순 대기열 진입 시도
+    alt 대기열 진입 실패
+        rect rgb(255, 30, 30, .3)
+            Service -->> Controller: 선착순 마감 예외
+            Controller -->> Client: 409 - Conflict
+        end
+    end
+
     Service ->>+ Repository: 쿠폰 정보 조회
     Repository -->>- Service: 쿠폰 정보 반환
     
@@ -212,12 +220,8 @@ sequenceDiagram
         end
     end
 
-    Service ->>+ Repository: 트랜잭션 시작
-    
-    Service ->> Repository: 쿠폰 재고 차감
-    Service ->> Repository: 회원 쿠폰 발급 사실 저장
-    
-    Repository -->>- Service: 트랜잭션 종료
+    Service ->>+ Repository: 쿠폰 발급
+    note right of Service : 쿠폰 발급 취소 보상 트랜잭션 등록
     
     Service -->>- Controller: 쿠폰 발급 프로세스 종료
     
