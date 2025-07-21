@@ -16,6 +16,21 @@ erDiagram
         created_at OffsetDateTime        
     }
     
+    product_history {
+        id Long PK
+        product_id Long FK        
+        name String
+        price Long         
+        changed_at OffsetDateTime
+        
+        change_type String "변경 유형"
+    }
+    
+    product_change_type {
+        change_type String PK
+        description String "변경 사유"
+    }
+    
     coupon {
         id Long PK
         name String
@@ -56,5 +71,7 @@ erDiagram
     user ||--o{ user_coupon : "보유함"
     coupon ||--o{ user_coupon : "발급함"
     order ||--o| user_coupon : "적용함"
+    
+    product ||--o{ product_history : "생성함"
+        product_history ||--|| product_change_type : "1:1"
 ```
-
