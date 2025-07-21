@@ -84,19 +84,21 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    autonumber
     actor Client
     participant Controller
     participant Service
-    participant Repository
+    participant User
+    participant Product
+    participant Coupon
+    participant Order
     participant DataPlatform
     
     %% 주문 / 결제 API
     Client ->> Controller: 주문 요청
     Controller ->>+ Service: 주문 프로세스 시작
 
-    Service ->>+ Repository: 트랜잭션 시작  
-
-    Service ->>+ Repository: 회원 정보 조회
+    Service ->>+ User: 회원 정보 조회
     
     alt 회원 정보 없음
         rect rgb(255, 30, 30, .3)
@@ -105,18 +107,13 @@ sequenceDiagram
         end
     end
     
-    Repository -->>- Service: 회원 정보 반환
-
     loop 상품 재고 확인
-        Service ->>+ Repository: 상품 정보 조회
-        Repository -->> Service: 상품 정보 반환
-        
-        Service ->> Repository: 재고 차감
-        Repository -->>- Service: 재고 차감 성공
-        
+        Service ->>+ Product: 상품 재고 점유
+        note right of Service: 상품 재고 취소 보상 트랜잭션 추가
+
         break 재고 부족함
-            rect rgb(255, 30, 30, .3)   
-                Service ->> Repository: 트랜잭션 롤백
+            rect rgb(255, 30, 30, .3)
+                Service ->> Service: 보상 트랜잭션 실행
                 Service -->> Controller: 재고 부족 예외
                 Controller -->> Client: 422 - Unprocessable Entity
             end
@@ -124,48 +121,42 @@ sequenceDiagram
     end
         
     alt 쿠폰 사용하는 경우
-        Service ->>+ Repository: 쿠폰 정보 조회
-        Repository -->> Service: 쿠폰 정보 반환
+        Service ->>+ Coupon: 쿠폰 사용 처리
+        note right of Service : 쿠폰 사용 취소 보상 트랜잭션 등록
         
         alt 쿠폰이 사용 불가능함
             rect rgb(255, 30, 30, .3)
+                Service ->> Service: 보상 트랜잭션 실행
                 Service -->> Controller: 쿠폰 사용 불가능 예외
                 Controller -->> Client: 422 - Unprocessable Entity
             end
         end
-        
-        Service ->> Repository: 쿠폰 사용 처리
-        Repository -->>- Service: 쿠폰 상태 변경됨
     end
     
     Service ->> Service: 주문 정보 생성
     
-    Service ->>+ Repository: 회원 포인트 차감
+    Service ->>+ User: 회원 포인트 차감
+    note right of Service: 회원 포인트 차감 취소 보상 트랜잭션 등록
     
     alt 회원 포인트 부족함
         rect rgb(255, 30, 30, .3)
-            Service ->> Repository: 트랜잭션 롤백    
+            Service ->> Service: 보상 트랜잭션 실행
             Service -->> Controller: 잔액 부족 예외
             Controller -->> Client: 422 - Unprocessable Entity
         end
     end
     
-    Repository -->>- Service: 포인트 차감 성공
-    
-    Service ->> Repository: 주문 저장
-    Repository -->> Service: 주문 저장 성공
-    
-    Service ->>+ DataPlatform: 주문 이력 저장 요청
-    
+    Service ->>+ Order: 주문 저장 처리
+    note right of Service: 회원 포인트 차감 취소 보상 트랜잭션 등록
+
+    Service ->>+ DataPlatform: 주문 이력 저장
     alt 주문 이력 저장 실패
         rect rgb(255, 30, 30, .3)
-            Service ->> Repository: 트랜잭션 롤백
+            Service ->> Service: 보상 트랜잭션 실행
             Service -->> Controller: 주문 처리 실패
             Controller -->> Client: 500 - Problem
         end
     end
-    
-    DataPlatform -->>- Service: 주문 이력 저장 성공
     
     Service -->>- Controller: 주문 프로세스 종료
     
@@ -211,6 +202,14 @@ sequenceDiagram
         end
     end
 
+    Service ->> Service: 선착순 대기열 진입 시도
+    alt 대기열 진입 실패
+        rect rgb(255, 30, 30, .3)
+            Service -->> Controller: 선착순 마감 예외
+            Controller -->> Client: 409 - Conflict
+        end
+    end
+
     Service ->>+ Repository: 쿠폰 정보 조회
     Repository -->>- Service: 쿠폰 정보 반환
     
@@ -221,12 +220,8 @@ sequenceDiagram
         end
     end
 
-    Service ->>+ Repository: 트랜잭션 시작
-    
-    Service ->> Repository: 쿠폰 재고 차감
-    Service ->> Repository: 회원 쿠폰 발급 사실 저장
-    
-    Repository -->>- Service: 트랜잭션 종료
+    Service ->>+ Repository: 쿠폰 발급
+    note right of Service : 쿠폰 발급 취소 보상 트랜잭션 등록
     
     Service -->>- Controller: 쿠폰 발급 프로세스 종료
     
