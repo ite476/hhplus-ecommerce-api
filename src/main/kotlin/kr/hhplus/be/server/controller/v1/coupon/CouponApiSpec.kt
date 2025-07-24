@@ -150,7 +150,7 @@ interface CouponApiSpec {
             )
         ]
     )
-    fun issueCoupon(
+    suspend fun issueCoupon(
         @RequestHeader userId: Long,
         @PathVariable couponId: Long
     ): ResponseEntity<PostCouponIssueResponse>
