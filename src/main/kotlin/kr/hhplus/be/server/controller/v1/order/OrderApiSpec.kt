@@ -112,8 +112,8 @@ interface OrderApiSpec {
             )
         ]
     )
-    fun createOrder(
+    suspend fun createOrder(
         @RequestHeader userId: Long,
-        @RequestBody request: PostOrderRequestBody
+        @RequestBody body: PostOrderRequestBody
     ): ResponseEntity<PostOrderResponse>
 }
