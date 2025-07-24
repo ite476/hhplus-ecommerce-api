@@ -4,58 +4,58 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import kr.hhplus.be.server.controller.v1.coupon.response.GetMyCouponsResponse
 import kr.hhplus.be.server.controller.v1.coupon.response.MyCouponInfo
 import kr.hhplus.be.server.controller.v1.coupon.response.PostCouponIssueResponse
+import kr.hhplus.be.server.service.coupon.entity.UserCouponStatus
+import kr.hhplus.be.server.service.coupon.service.CouponService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.ZoneOffset
-import java.time.ZonedDateTime
-import java.util.*
 
 @RestController
 @RequestMapping("/api/v1")
 @Tag(name = "Coupon API", description = "쿠폰 API")
-class CouponController
-    : CouponApiSpec {
+class CouponController(
+    val couponService: CouponService
+    ) : CouponApiSpec {
 
     @GetMapping("/mycoupons")
     override fun getMyCoupons(
         @RequestHeader userId: Long
-    ): ResponseEntity<GetMyCouponsResponse> = ResponseEntity.ok(
-        GetMyCouponsResponse(
-            coupons = listOf(
-                MyCouponInfo(
-                    couponId = 1,
-                    couponName = "아무튼할인쿠폰",
-                    discountAmount = 5000,
-                    isUsable = true,
-                    expirationDate = Date.from(
-                        LocalDate.parse("2025-01-23")
-                            .atStartOfDay(ZoneId.of("Asia/Seoul"))
-                            .toInstant()
-                    ),
-                    issuedAt = ZonedDateTime.of(2025, 1, 23, 0, 0, 0, 0, ZoneOffset.of("+09:00")),
-                    usedAt = ZonedDateTime.of(2025, 1, 23, 0, 0, 0, 0, ZoneOffset.of("+09:00")),
-                ),
-            ),
+    ): ResponseEntity<GetMyCouponsResponse> {
+        val userCoupons = couponService.readUserCoupons(userId)
+
+        val couponsRespone =
+            ResponseEntity.ok(GetMyCouponsResponse(
+                coupons = userCoupons.map {
+                    MyCouponInfo(
+                        it.id,
+                        it.couponName,
+                        it.discount,
+                        it.status == UserCouponStatus.ACTIVE,
+                        it.issuedAt,
+                        it.validUntil,
+                        it.usedAt,
+                    )
+                }
+            )
         )
-    )
+
+        return couponsRespone
+    }
 
     @PostMapping("/coupon/{couponId}")
-    override fun issueCoupon(
+    override suspend fun issueCoupon(
         @RequestHeader userId: Long,
         @PathVariable couponId: Long
-    ): ResponseEntity<PostCouponIssueResponse> = ResponseEntity.ok(
-        PostCouponIssueResponse(
-            couponId = 1,
-            couponName = "할인할인쿠폰",
-            discountAmount = 3000,
-            expirationDate = Date.from(
-                LocalDate.parse("2025-01-23")
-                    .atStartOfDay(ZoneId.of("Asia/Seoul"))
-                    .toInstant()
-            ),
-            issuedAt = ZonedDateTime.of(2025, 1, 23, 0, 0, 0, 0, ZoneOffset.of("+09:00")),
+    ): ResponseEntity<PostCouponIssueResponse> {
+        val issuedCoupon = couponService.issueCoupon(userId, couponId);
+
+        val issuedCouponResponse = PostCouponIssueResponse(
+            issuedCoupon.id,
+            issuedCoupon.couponName,
+            issuedCoupon.discount,
+            issuedCoupon.validUntil,
+            issuedCoupon.issuedAt,
         )
-    )
+
+        return ResponseEntity.ok(issuedCouponResponse)
+    }
 }

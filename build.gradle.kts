@@ -44,22 +44,32 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
-    // Spring
+	// Spring
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
 
-    // DB
+	// DB
 	runtimeOnly("com.mysql:mysql-connector-j")
 
-    // Test
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
+	// Test
+	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.springframework.boot:spring-boot-starter-webflux") // WebTestClient 지원
 	testImplementation("org.springframework.boot:spring-boot-testcontainers")
 	testImplementation("org.testcontainers:junit-jupiter")
 	testImplementation("org.testcontainers:mysql")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+	testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0") // 코루틴 테스트 지원
+
+	// kotest & mockk 테스트 의존성
+	testImplementation("io.kotest:kotest-runner-junit5:5.7.2")
+	testImplementation("io.kotest:kotest-assertions-core:5.7.2")
+	testImplementation("io.mockk:mockk:1.13.9")
+	testImplementation("com.ninja-squad:springmockk:4.0.2")
+	testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
 }
 
 tasks.withType<Test> {

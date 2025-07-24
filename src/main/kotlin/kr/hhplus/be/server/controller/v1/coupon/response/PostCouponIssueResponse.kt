@@ -12,8 +12,8 @@ data class PostCouponIssueResponse(
     val couponName: String,
     @field:Schema(description = "할인 금액 (원)", example = "2000")
     val discountAmount: Long,
-    @field:Schema(description = "쿠폰 만료일", example = "2024-12-31")
-    val expirationDate: Date,
-    @field:Schema(description = "발급일시", example = "2024-01-15T10:30:00")
+    @field:Schema(description = "쿠폰 만료일", example = "2024-12-31T00:00:00+09:00")
+    val validUntil: ZonedDateTime,
+    @field:Schema(description = "발급일시", example = "2024-01-15T10:30:00+09:00")
     val issuedAt: ZonedDateTime
 ) 
