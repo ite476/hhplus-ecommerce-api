@@ -1,6 +1,6 @@
-package kr.hhplus.be.server.service.common.transaction
+package kr.hhplus.be.server.service.transaction
 
-import java.util.Stack
+import java.util.*
 
 class CompensationScope {
     private val stack = Stack<suspend () -> Unit>()
