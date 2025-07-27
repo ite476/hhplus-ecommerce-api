@@ -15,6 +15,6 @@ interface ProductPort {
     ) : List<ProductSaleSummary>
 
     fun findProductById(productId: Long) : Product
-    fun saveProduct(product: kr.hhplus.be.server.service.product.entity.Product)
+    fun saveProduct(product: Product)
     fun existsProduct(productId: Long): Boolean
 }
