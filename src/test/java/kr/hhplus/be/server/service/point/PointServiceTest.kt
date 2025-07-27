@@ -1,8 +1,10 @@
 package kr.hhplus.be.server.service.point
 
 import io.kotest.matchers.shouldBe
+import io.mockk.Runs
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
+import io.mockk.just
 import io.mockk.verify
 import kr.hhplus.be.server.service.ServiceTestBase
 import kr.hhplus.be.server.service.point.entity.PointChange
@@ -11,6 +13,7 @@ import kr.hhplus.be.server.service.point.port.PointPort
 import kr.hhplus.be.server.service.point.service.PointService
 import kr.hhplus.be.server.service.user.entity.User
 import kr.hhplus.be.server.service.user.service.UserService
+import kr.hhplus.be.server.service.user.usecase.RequiresUserIdExistsUsecase
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -21,7 +24,10 @@ class PointServiceTest : ServiceTestBase() {
 
     @MockK
     private lateinit var userService: UserService
-    
+
+    @MockK
+    private lateinit var requireUserIdExistsUsecase: RequiresUserIdExistsUsecase
+
     @MockK
     private lateinit var pointPort: PointPort
     
@@ -30,7 +36,11 @@ class PointServiceTest : ServiceTestBase() {
     @BeforeEach
     fun setupPointService() {
         super.setUp()
-        pointService = PointService(userService, timeProvider, pointPort)
+        pointService = PointService(
+            requireUserIdExistsUsecase = requireUserIdExistsUsecase,
+            timeProvider = timeProvider,
+            pointPort = pointPort
+        )
     }
 
     @Nested
@@ -43,21 +53,21 @@ class PointServiceTest : ServiceTestBase() {
             // given
             val userId = 1L
             val chargeAmount = 10000L
-            val user = User(userId, "김철수", 5000L)
+            val user = User(id = userId, name = "김철수", point = 5000L)
             val expectedPointChange = PointChange(
-                1L, userId, chargeAmount, PointChangeType.Charge, fixedTime
+                id = 1L, userId = userId, pointChange = chargeAmount, type = PointChangeType.Charge, happenedAt = fixedTime
             )
             
-            every { userService.readSingleUser(userId) } returns user
-            every { pointPort.chargePoint(userId, chargeAmount, fixedTime) } returns expectedPointChange
+            every { requireUserIdExistsUsecase.requireUserIdExists(userId) } just Runs
+            every { pointPort.chargePoint(userId = userId, pointChange = chargeAmount, `when` = fixedTime) } returns expectedPointChange
 
             // when
-            val result = pointService.chargePoint(userId, chargeAmount)
+            val result: PointChange = pointService.chargePoint(userId = userId, point = chargeAmount)
 
             // then
             result shouldBe expectedPointChange
-            verify { userService.readSingleUser(userId) }
-            verify { pointPort.chargePoint(userId, chargeAmount, fixedTime) }
+            verify { requireUserIdExistsUsecase.requireUserIdExists(userId) }
+            verify { pointPort.chargePoint(userId = userId, pointChange = chargeAmount, `when` = fixedTime) }
         }
 
         @Test
@@ -66,21 +76,21 @@ class PointServiceTest : ServiceTestBase() {
             // given
             val userId = 1L
             val chargeAmount = 5000L
-            val user = User(userId, "김철수", 10000L)
+            val user = User(id = userId, name = "김철수", point = 10000L)
             val expectedPointChange = PointChange(
-                2L, userId, chargeAmount, PointChangeType.Charge, fixedTime
+                id = 2L, userId = userId, pointChange = chargeAmount, type = PointChangeType.Charge, happenedAt = fixedTime
             )
             
-            every { userService.readSingleUser(userId) } returns user
-            every { pointPort.chargePoint(user.id, chargeAmount, fixedTime) } returns expectedPointChange
+            every { requireUserIdExistsUsecase.requireUserIdExists(userId) } just Runs
+            every { pointPort.chargePoint(userId = userId, pointChange = chargeAmount, `when` = fixedTime) } returns expectedPointChange
 
             // when
-            val result = pointService.chargePoint(userId, chargeAmount)
+            val result: PointChange = pointService.chargePoint(userId = userId, point = chargeAmount)
 
             // then
             result shouldBe expectedPointChange
-            verify { userService.readSingleUser(userId) }
-            verify { pointPort.chargePoint(user.id, chargeAmount, fixedTime) }
+            verify { requireUserIdExistsUsecase.requireUserIdExists(userId) }
+            verify { pointPort.chargePoint(userId = userId, pointChange = chargeAmount, `when` = fixedTime) }
         }
     }
 
@@ -95,19 +105,19 @@ class PointServiceTest : ServiceTestBase() {
             val userId = 1L
             val useAmount = 3000L
             val expectedPointChange = PointChange(
-                3L, userId, useAmount, PointChangeType.Use, fixedTime
+                id = 3L, userId = userId, pointChange = useAmount, type = PointChangeType.Use, happenedAt = fixedTime
             )
             
-            every { userService.requireUserExists(userId) } returns Unit
-            every { pointPort.usePoint(userId, useAmount, fixedTime) } returns expectedPointChange
+            every { requireUserIdExistsUsecase.requireUserIdExists(userId) } returns Unit
+            every { pointPort.usePoint(userId = userId, pointChange = useAmount, `when` = fixedTime) } returns expectedPointChange
 
             // when
-            val result = pointService.usePoint(userId, useAmount)
+            val result: PointChange = pointService.usePoint(userId = userId, point = useAmount)
 
             // then
             result shouldBe expectedPointChange
-            verify { userService.requireUserExists(userId) }
-            verify { pointPort.usePoint(userId, useAmount, fixedTime) }
+            verify { requireUserIdExistsUsecase.requireUserIdExists(userId) }
+            verify { pointPort.usePoint(userId = userId, pointChange = useAmount, `when` = fixedTime) }
         }
 
         @Test
@@ -117,19 +127,19 @@ class PointServiceTest : ServiceTestBase() {
             val userId = 1L
             val useAmount = 7000L
             val expectedPointChange = PointChange(
-                4L, userId, useAmount, PointChangeType.Use, fixedTime
+                id = 4L, userId = userId, pointChange = useAmount, type = PointChangeType.Use, happenedAt = fixedTime
             )
             
-            every { userService.requireUserExists(userId) } returns Unit
-            every { pointPort.usePoint(userId, useAmount, fixedTime) } returns expectedPointChange
+            every { requireUserIdExistsUsecase.requireUserIdExists(userId) } returns Unit
+            every { pointPort.usePoint(userId = userId, pointChange = useAmount, `when` = fixedTime) } returns expectedPointChange
 
             // when
-            val result = pointService.usePoint(userId, useAmount)
+            val result: PointChange = pointService.usePoint(userId = userId, point = useAmount)
 
             // then
             result shouldBe expectedPointChange
-            verify { userService.requireUserExists(userId) }
-            verify { pointPort.usePoint(userId, useAmount, fixedTime) }
+            verify { requireUserIdExistsUsecase.requireUserIdExists(userId) }
+            verify { pointPort.usePoint(userId = userId, pointChange = useAmount, `when` = fixedTime) }
         }
     }
 
@@ -142,7 +152,7 @@ class PointServiceTest : ServiceTestBase() {
         fun createChargePointChange() {
             // given & when
             val pointChange = PointChange(
-                1L, 1L, 10000L, PointChangeType.Charge, fixedTime
+                id = 1L, userId = 1L, pointChange = 10000L, type = PointChangeType.Charge, happenedAt = fixedTime
             )
 
             // then
@@ -158,7 +168,7 @@ class PointServiceTest : ServiceTestBase() {
         fun createUsePointChange() {
             // given & when
             val pointChange = PointChange(
-                2L, 1L, 5000L, PointChangeType.Use, fixedTime
+                id = 2L, userId = 1L, pointChange = 5000L, type = PointChangeType.Use, happenedAt = fixedTime
             )
 
             // then

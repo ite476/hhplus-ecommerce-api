@@ -3,11 +3,13 @@ package kr.hhplus.be.server.service.order
 import io.kotest.matchers.shouldBe
 import io.mockk.*
 import io.mockk.impl.annotations.MockK
+import kotlinx.coroutines.newFixedThreadPoolContext
 import kotlinx.coroutines.test.runTest
 import kr.hhplus.be.server.service.ServiceTestBase
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
 import kr.hhplus.be.server.service.coupon.entity.UserCouponStatus
-import kr.hhplus.be.server.service.coupon.service.CouponService
+import kr.hhplus.be.server.service.coupon.usecase.FindUserCouponByIdUsecase
+import kr.hhplus.be.server.service.coupon.usecase.UseUserCouponUsecase
 import kr.hhplus.be.server.service.order.entity.Order
 import kr.hhplus.be.server.service.order.entity.OrderItem
 import kr.hhplus.be.server.service.order.port.DataPlatformPort
@@ -15,11 +17,14 @@ import kr.hhplus.be.server.service.order.port.OrderPort
 import kr.hhplus.be.server.service.order.service.OrderService
 import kr.hhplus.be.server.service.point.entity.PointChange
 import kr.hhplus.be.server.service.point.entity.PointChangeType
-import kr.hhplus.be.server.service.point.service.PointService
+import kr.hhplus.be.server.service.point.usecase.ChargePointUsecase
+import kr.hhplus.be.server.service.point.usecase.UsePointUsecase
 import kr.hhplus.be.server.service.product.entity.Product
-import kr.hhplus.be.server.service.product.service.ProductService
+import kr.hhplus.be.server.service.product.usecase.AddProductStockUsecase
+import kr.hhplus.be.server.service.product.usecase.FindProductByIdUsecase
+import kr.hhplus.be.server.service.product.usecase.ReduceProductStockUsecase
 import kr.hhplus.be.server.service.user.entity.User
-import kr.hhplus.be.server.service.user.service.UserService
+import kr.hhplus.be.server.service.user.usecase.FindUserByIdUsecase
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -27,19 +32,32 @@ import org.junit.jupiter.api.Test
 
 @DisplayName("OrderService 단위테스트")
 class OrderServiceTest : ServiceTestBase() {
+    @MockK
+    private lateinit var findUserByIdUsecase: FindUserByIdUsecase
 
     @MockK
-    private lateinit var userService: UserService
-    
+    private lateinit var findProductByIdUsercase: FindProductByIdUsecase
+
     @MockK
-    private lateinit var pointService: PointService
-    
+    private lateinit var reduceProductStockUsecase: ReduceProductStockUsecase
+
     @MockK
-    private lateinit var productService: ProductService
-    
+    private lateinit var addProduceStockUsecase: AddProductStockUsecase
+
     @MockK
-    private lateinit var couponService: CouponService
-    
+    private lateinit var usePointUsecase: UsePointUsecase
+
+    @MockK
+    private lateinit var chargePointUsecase: ChargePointUsecase
+
+    @MockK
+    private lateinit var findUserCouponByIdUsecase: FindUserCouponByIdUsecase
+
+    @MockK
+    private lateinit var useUserCouponUsecase: UseUserCouponUsecase
+
+
+
     @MockK
     private lateinit var orderPort: OrderPort
     
@@ -48,17 +66,23 @@ class OrderServiceTest : ServiceTestBase() {
     
     private lateinit var orderService: OrderService
 
+
+
     @BeforeEach
     fun setupOrderService() {
         super.setUp()
         orderService = OrderService(
-            userService,
-            pointService,
-            productService,
-            couponService,
-            orderPort,
-            dataPlatformPort,
-            timeProvider
+            findUserByIdUsecase = findUserByIdUsecase,
+            findProductByIdUsercase = findProductByIdUsercase,
+            reduceProductStockUsecase = reduceProductStockUsecase,
+            addProduceStockUsecase = addProduceStockUsecase,
+            usePointUsecase = usePointUsecase,
+            chargePointUsecase = chargePointUsecase,
+            findUserCouponByIdUsecase = findUserCouponByIdUsecase,
+            useUserCouponUsecase = useUserCouponUsecase,
+            orderPort = orderPort,
+            dataPlatformPort = dataPlatformPort,
+            timeProvider = timeProvider
         )
     }
 
@@ -71,53 +95,62 @@ class OrderServiceTest : ServiceTestBase() {
         fun createsOrderWithoutCoupon() = runTest {
             // given
             val userId = 1L
-            val products = listOf(
-                OrderService.CreateOrderInput.ProductWithQuantity(1L, 2),
-                OrderService.CreateOrderInput.ProductWithQuantity(2L, 1)
+            val products: List<OrderService.CreateOrderInput.ProductWithQuantity> = listOf(
+                OrderService.CreateOrderInput.ProductWithQuantity(productId = 1L, quantity = 2),
+                OrderService.CreateOrderInput.ProductWithQuantity(productId = 2L, quantity = 1)
             )
-            val input = OrderService.CreateOrderInput(userId, products, null)
+            val input = OrderService.CreateOrderInput(userId = userId, products = products, userCouponId = null)
 
-            val user = User(userId, "김철수", 20000L)
-            val productEntities = listOf(
-                Product(1L, "아메리카노", 4500L, 100, fixedTime),
-                Product(2L, "라떼", 5000L, 50, fixedTime)
+            val user = User(id = userId, name = "김철수", point = 20000L)
+            val productEntities: List<Product> = listOf(
+                Product(id = 1L, name = "아메리카노", price = 4500L, stock = 100, createdAt = fixedTime),
+                Product(id = 2L, name = "라떼", price = 5000L, stock = 50, createdAt = fixedTime)
             )
-            val pointChange = PointChange(1L, userId, 14000L, PointChangeType.Use, fixedTime)
+            val pointChange = PointChange(
+                id = 1L,
+                userId = userId,
+                pointChange = 14000L,
+                type = PointChangeType.Use,
+                happenedAt = fixedTime
+            )
             
-            val orderItems = listOf(
-                OrderItem(1L, 1L, "아메리카노", 4500L, 2),
-                OrderItem(2L, 2L, "라떼", 5000L, 1)
+            val orderItems: List<OrderItem> = listOf(
+                OrderItem(id = 1L, productId = 1L, productName = "아메리카노", unitPrice = 4500L, quantity = 2),
+                OrderItem(id = 2L, productId = 2L, productName = "라떼", unitPrice = 5000L, quantity = 1)
             )
             val expectedOrder = Order(
-                1L, userId, null, orderItems, 14000L, 0L, fixedTime
+                id = 1L,
+                userId = userId,
+                userCouponId = null,
+                orderItems = orderItems,
+                totalProductsPrice = 14000L,
+                discountedPrice = 0L,
+                orderedAt = fixedTime
             )
 
             // Mock 설정
-            every { userService.requireUserExists(userId) } just Runs
-            every { productService.requireProductExists(any()) } just Runs
-            every { couponService.requireUserCouponExists(any()) } just Runs
-            every { userService.readSingleUser(userId) } returns user
-            every { productService.readSingleProduct(1L) } returns productEntities[0]
-            every { productService.readSingleProduct(2L) } returns productEntities[1]
-            every { productService.reduceProductStock(1L, 2, fixedTime) } returns Unit
-            every { productService.reduceProductStock(2L, 1, fixedTime) } returns Unit
-            every { pointService.usePoint(userId, 14000L) } returns pointChange
-            coEvery { orderPort.createOrder(any(), any(), any(), any()) } returns expectedOrder
-            coEvery { dataPlatformPort.sendOrderData(any()) } returns Unit
+            every { findUserByIdUsecase.findUserById(userId) } returns user
+            every { findProductByIdUsercase.findProductById(productId = 1L) } returns productEntities[0]
+            every { findProductByIdUsercase.findProductById(productId = 2L) } returns productEntities[1]
+            every { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 2, now = fixedTime) } returns Unit
+            every { reduceProductStockUsecase.reduceProductStock(productId = 2L, quantity = 1, now = fixedTime) } returns Unit
+            every { usePointUsecase.usePoint(userId = userId, point = 14000L) } returns pointChange
+            coEvery { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) } returns expectedOrder
+            coEvery { dataPlatformPort.sendOrderData(order = any()) } returns Unit
 
             // when
             val result = orderService.createOrder(input)
 
             // then
             result shouldBe expectedOrder
-            verify { userService.readSingleUser(userId) }
-            verify { productService.readSingleProduct(1L) }
-            verify { productService.readSingleProduct(2L) }
-            verify { productService.reduceProductStock(1L, 2, fixedTime) }
-            verify { productService.reduceProductStock(2L, 1, fixedTime) }
-            verify { pointService.usePoint(userId, 14000L) }
-            coVerify { orderPort.createOrder(any(), any(), any(), any()) }
-            coVerify { dataPlatformPort.sendOrderData(any()) }
+            verify { findUserByIdUsecase.findUserById(userId) }
+            verify { findProductByIdUsercase.findProductById(productId = 1L) }
+            verify { findProductByIdUsercase.findProductById(productId = 2L) }
+            verify { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 2, now = fixedTime) }
+            verify { reduceProductStockUsecase.reduceProductStock(productId = 2L, quantity = 1, now = fixedTime) }
+            verify { usePointUsecase.usePoint(userId = userId, point = 14000L) }
+            coVerify { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) }
+            coVerify { dataPlatformPort.sendOrderData(order = any()) }
         }
 
         @Test
@@ -126,52 +159,61 @@ class OrderServiceTest : ServiceTestBase() {
             // given
             val userId = 1L
             val userCouponId = 1L
-            val products = listOf(
-                OrderService.CreateOrderInput.ProductWithQuantity(1L, 1)
+            val products: List<OrderService.CreateOrderInput.ProductWithQuantity> = listOf(
+                OrderService.CreateOrderInput.ProductWithQuantity(productId = 1L, quantity = 1)
             )
-            val input = OrderService.CreateOrderInput(userId, products, userCouponId)
+            val input = OrderService.CreateOrderInput(userId = userId, products = products, userCouponId = userCouponId)
 
-            val user = User(userId, "김철수", 15000L)
-            val product = Product(1L, "아메리카노", 4500L, 100, fixedTime)
+            val user = User(id = userId, name = "김철수", point = 15000L)
+            val product = Product(id = 1L, name = "아메리카노", price = 4500L, stock = 100, createdAt = fixedTime)
             val userCoupon = UserCoupon(
-                1L, userId, 1L, "신규가입쿠폰", 2000L,
-                UserCouponStatus.ACTIVE, fixedTime, null, fixedTime.plusDays(30)
+                id = 1L, userId = userId, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
             )
-            val pointChange = PointChange(1L, userId, 2500L, PointChangeType.Use, fixedTime)
+            val pointChange = PointChange(
+                id = 1L,
+                userId = userId,
+                pointChange = 2500L,
+                type = PointChangeType.Use,
+                happenedAt = fixedTime
+            )
             
-            val orderItems = listOf(
-                OrderItem(1L, 1L, "아메리카노", 4500L, 1)
+            val orderItems: List<OrderItem> = listOf(
+                OrderItem(id = 1L, productId = 1L, productName = "아메리카노", unitPrice = 4500L, quantity = 1)
             )
             val expectedOrder = Order(
-                1L, userId, userCouponId, orderItems, 4500L, 2000L, fixedTime
+                id = 1L,
+                userId = userId,
+                userCouponId = userCouponId,
+                orderItems = orderItems,
+                totalProductsPrice = 4500L,
+                discountedPrice = 2000L,
+                orderedAt = fixedTime
             )
 
             // Mock 설정
-            every { userService.requireUserExists(userId) } just Runs
-            every { productService.requireProductExists(any()) } just Runs
-            every { couponService.requireUserCouponExists(any()) } just Runs
-            every { userService.readSingleUser(userId) } returns user
-            every { productService.readSingleProduct(1L) } returns product
-            every { productService.reduceProductStock(1L, 1, fixedTime) } returns Unit
-            every { couponService.readSingleUserCoupon(userId, userCouponId) } returns userCoupon
-            every { couponService.useUserCoupon(userCoupon, fixedTime) } returns Unit
-            every { pointService.usePoint(userId, 2500L) } returns pointChange
-            coEvery { orderPort.createOrder(any(), any(), any(), any()) } returns expectedOrder
-            coEvery { dataPlatformPort.sendOrderData(any()) } returns Unit
+            every { findUserByIdUsecase.findUserById(userId) } returns user
+            every { findProductByIdUsercase.findProductById(productId = 1L) } returns product
+            every { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 1, now = fixedTime) } returns Unit
+            every { findUserCouponByIdUsecase.findUserCouponById(userId = userId, userCouponId = userCouponId) } returns userCoupon
+            every { useUserCouponUsecase.useUserCoupon(userCoupon = userCoupon, now = fixedTime) } returns Unit
+            every { usePointUsecase.usePoint(userId, point = 2500L) } returns pointChange
+            coEvery { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) } returns expectedOrder
+            coEvery { dataPlatformPort.sendOrderData(order = any()) } returns Unit
 
             // when
-            val result = orderService.createOrder(input)
+            val result: Order = orderService.createOrder(input)
 
             // then
             result shouldBe expectedOrder
-            verify { userService.readSingleUser(userId) }
-            verify { productService.readSingleProduct(1L) }
-            verify { productService.reduceProductStock(1L, 1, fixedTime) }
-            verify { couponService.readSingleUserCoupon(userId, userCouponId) }
-            verify { couponService.useUserCoupon(userCoupon, fixedTime) }
-            verify { pointService.usePoint(userId, 2500L) }
-            coVerify { orderPort.createOrder(any(), any(), any(), any()) }
-            coVerify { dataPlatformPort.sendOrderData(any()) }
+            verify { findUserByIdUsecase.findUserById(userId) }
+            verify { findProductByIdUsercase.findProductById(productId = 1L) }
+            verify { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 1, now = fixedTime) }
+            verify { findUserCouponByIdUsecase.findUserCouponById(userId = userId, userCouponId = userCouponId) }
+            verify { useUserCouponUsecase.useUserCoupon(userCoupon = userCoupon, now = fixedTime) }
+            verify { usePointUsecase.usePoint(userId = userId, point = 2500L) }
+            coVerify { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) }
+            coVerify { dataPlatformPort.sendOrderData(order = any()) }
         }
     }
 
@@ -183,11 +225,17 @@ class OrderServiceTest : ServiceTestBase() {
         @DisplayName("Order가 올바르게 생성된다")
         fun createOrderCorrectly() {
             // given & when
-            val orderItems = listOf(
-                OrderItem(1L, 1L, "아메리카노", 4500L, 2)
+            val orderItems: List<OrderItem> = listOf(
+                OrderItem(id = 1L, productId = 1L, productName = "아메리카노", unitPrice = 4500L, quantity = 2)
             )
             val order = Order(
-                1L, 1L, null, orderItems, 9000L, 1000L, fixedTime
+                id = 1L,
+                userId = 1L,
+                userCouponId = null,
+                orderItems = orderItems,
+                totalProductsPrice = 9000L,
+                discountedPrice = 1000L,
+                orderedAt = fixedTime
             )
 
             // then
@@ -206,7 +254,7 @@ class OrderServiceTest : ServiceTestBase() {
         fun createOrderItemCorrectly() {
             // given & when
             val orderItem = OrderItem(
-                1L, 1L, "아메리카노", 4500L, 2
+                id = 1L, productId = 1L, productName = "아메리카노", unitPrice = 4500L, quantity = 2
             )
 
             // then
@@ -222,12 +270,18 @@ class OrderServiceTest : ServiceTestBase() {
         @DisplayName("여러 OrderItem으로 구성된 Order가 올바르게 생성된다")
         fun createOrderWithMultipleItems() {
             // given & when
-            val orderItems = listOf(
-                OrderItem(1L, 1L, "아메리카노", 4500L, 2),
-                OrderItem(2L, 2L, "라떼", 5000L, 1)
+            val orderItems: List<OrderItem> = listOf(
+                OrderItem(id = 1L, productId = 1L, productName = "아메리카노", unitPrice = 4500L, quantity = 2),
+                OrderItem(id = 2L, productId = 2L, productName = "라떼", unitPrice = 5000L, quantity = 1)
             )
             val order = Order(
-                1L, 1L, 1L, orderItems, 14000L, 2000L, fixedTime
+                id = 1L,
+                userId = 1L,
+                userCouponId = 1L,
+                orderItems = orderItems,
+                totalProductsPrice = 14000L,
+                discountedPrice = 2000L,
+                orderedAt = fixedTime
             )
 
             // then
@@ -248,11 +302,11 @@ class OrderServiceTest : ServiceTestBase() {
         @DisplayName("CreateOrderInput이 올바르게 생성된다")
         fun createInputCorrectly() {
             // given & when
-            val products = listOf(
-                OrderService.CreateOrderInput.ProductWithQuantity(1L, 2),
-                OrderService.CreateOrderInput.ProductWithQuantity(2L, 1)
+            val products: List<OrderService.CreateOrderInput.ProductWithQuantity> = listOf(
+                OrderService.CreateOrderInput.ProductWithQuantity(productId = 1L, quantity = 2),
+                OrderService.CreateOrderInput.ProductWithQuantity(productId = 2L, quantity = 1)
             )
-            val input = OrderService.CreateOrderInput(1L, products, 1L)
+            val input = OrderService.CreateOrderInput(userId = 1L, products = products, userCouponId = 1L)
 
             // then
             input.userId shouldBe 1L
@@ -268,10 +322,10 @@ class OrderServiceTest : ServiceTestBase() {
         @DisplayName("쿠폰 없는 CreateOrderInput이 올바르게 생성된다")
         fun createInputWithoutCoupon() {
             // given & when
-            val products = listOf(
-                OrderService.CreateOrderInput.ProductWithQuantity(1L, 1)
+            val products: List<OrderService.CreateOrderInput.ProductWithQuantity> = listOf(
+                OrderService.CreateOrderInput.ProductWithQuantity(productId = 1L, quantity = 1)
             )
-            val input = OrderService.CreateOrderInput(1L, products, null)
+            val input = OrderService.CreateOrderInput(userId = 1L, products = products, userCouponId = null)
 
             // then
             input.userId shouldBe 1L

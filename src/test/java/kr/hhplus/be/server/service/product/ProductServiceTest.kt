@@ -32,7 +32,7 @@ class ProductServiceTest : ServiceTestBase() {
     }
 
     @Nested
-    @DisplayName("readProducts 메서드는")
+    @DisplayName("findAllProducts 메서드는")
     inner class ReadProductsTest {
 
         @Test
@@ -46,7 +46,7 @@ class ProductServiceTest : ServiceTestBase() {
             every { productPort.findAllProducts() } returns expectedProducts
 
             // when
-            val result = productService.readProducts()
+            val result = productService.findAllProducts()
 
             // then
             result shouldBe expectedProducts
@@ -60,7 +60,7 @@ class ProductServiceTest : ServiceTestBase() {
             every { productPort.findAllProducts() } returns emptyList()
 
             // when
-            val result = productService.readProducts()
+            val result = productService.findAllProducts()
 
             // then
             result shouldBe emptyList()
@@ -69,7 +69,7 @@ class ProductServiceTest : ServiceTestBase() {
     }
 
     @Nested
-    @DisplayName("readSingleProduct 메서드는")
+    @DisplayName("findProductById 메서드는")
     inner class ReadSingleProductTest {
 
         @Test
@@ -83,7 +83,7 @@ class ProductServiceTest : ServiceTestBase() {
             every { productPort.findProductById(productId) } returns expectedProduct
 
             // when
-            val result = productService.readSingleProduct(productId)
+            val result = productService.findProductById(productId)
 
             // then
             result shouldBe expectedProduct
@@ -92,7 +92,7 @@ class ProductServiceTest : ServiceTestBase() {
     }
 
     @Nested
-    @DisplayName("readPopularProducts 메서드는")
+    @DisplayName("findAllPopularProducts 메서드는")
     inner class ReadPopularProductsTest {
 
         @Test
@@ -118,7 +118,7 @@ class ProductServiceTest : ServiceTestBase() {
             } returns expectedProducts
 
             // when
-            val result = productService.readPopularProducts()
+            val result = productService.findAllPopularProducts()
 
             // then
             result shouldBe expectedProducts

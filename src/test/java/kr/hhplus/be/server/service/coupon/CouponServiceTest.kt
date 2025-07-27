@@ -13,10 +13,12 @@ import kr.hhplus.be.server.service.coupon.exception.UserCouponIsNotUsedButTriedT
 import kr.hhplus.be.server.service.coupon.port.CouponPort
 import kr.hhplus.be.server.service.coupon.service.CouponService
 import kr.hhplus.be.server.service.user.service.UserService
+import kr.hhplus.be.server.service.user.usecase.RequiresUserIdExistsUsecase
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.ZonedDateTime
 
 @DisplayName("CouponService 단위테스트")
 class CouponServiceTest : ServiceTestBase() {
@@ -27,13 +29,16 @@ class CouponServiceTest : ServiceTestBase() {
     @MockK
     private lateinit var userService: UserService
 
+    @MockK
+    private lateinit var requireUserIdExistsUsecase: RequiresUserIdExistsUsecase
+
     private lateinit var couponService: CouponService
 
 
     @BeforeEach
     fun setupCouponService() {
         super.setUp()
-        couponService = CouponService(couponPort, userService, timeProvider)
+        couponService = CouponService(couponPort, requireUserIdExistsUsecase, timeProvider)
     }
 
     @Nested
@@ -47,15 +52,15 @@ class CouponServiceTest : ServiceTestBase() {
             val userId = 1L
             val userCouponId = 1L
             val expectedCoupon = UserCoupon(
-                userCouponId, userId, 1L, "신규가입쿠폰", 2000L,
-                UserCouponStatus.ACTIVE, fixedTime, null, fixedTime.plusDays(30)
+                id = userCouponId, userId = userId, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
             )
-            every { userService.requireUserExists(any()) } just Runs
-            every { couponPort.existsUserCoupon(any()) } returns true
+            every { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
+            every { couponPort.existsUserCoupon(userCouponId = any()) } returns true
             every { couponPort.findUserCouponById(userId, userCouponId) } returns expectedCoupon
 
             // when
-            val result = couponService.readSingleUserCoupon(userId, userCouponId)
+            val result = couponService.findUserCouponById(userId, userCouponId)
 
             // then
             result shouldBe expectedCoupon
@@ -72,14 +77,14 @@ class CouponServiceTest : ServiceTestBase() {
         fun usesActiveCoupon() {
             // given
             val userCoupon = UserCoupon(
-                1L, 1L, 1L, "신규가입쿠폰", 2000L,
-                UserCouponStatus.ACTIVE, fixedTime, null, fixedTime.plusDays(30)
+                id = 1L, userId = 1L, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
             )
-            every { couponPort.existsUserCoupon(any()) } returns true
+            every { couponPort.existsUserCoupon(userCouponId = any()) } returns true
             every { couponPort.saveUserCoupon(userCoupon) } returns Unit
 
             // when
-            couponService.useUserCoupon(userCoupon, fixedTime)
+            couponService.useUserCoupon(userCoupon = userCoupon, now = fixedTime)
 
             // then
             userCoupon.status shouldBe UserCouponStatus.USED
@@ -97,14 +102,14 @@ class CouponServiceTest : ServiceTestBase() {
         fun rollbacksUsedCoupon() {
             // given
             val userCoupon = UserCoupon(
-                1L, 1L, 1L, "신규가입쿠폰", 2000L,
-                UserCouponStatus.USED, fixedTime, fixedTime, fixedTime.plusDays(30)
+                id = 1L, userId = 1L, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.USED, issuedAt = fixedTime, usedAt = fixedTime, validUntil = fixedTime.plusDays(30)
             )
-            every { couponPort.existsUserCoupon(any()) } returns true
+            every { couponPort.existsUserCoupon(userCouponId = any()) } returns true
             every { couponPort.saveUserCoupon(userCoupon) } returns Unit
 
             // when
-            couponService.rollbackUserCouponUsage(userCoupon, fixedTime)
+            couponService.rollbackUserCouponUsage(userCoupon = userCoupon, now = fixedTime)
 
             // then
             userCoupon.status shouldBe UserCouponStatus.ACTIVE
@@ -122,21 +127,21 @@ class CouponServiceTest : ServiceTestBase() {
         fun returnsAllUserCoupons() {
             // given
             val userId = 1L
-            val expectedCoupons = listOf(
+            val expectedCoupons: List<UserCoupon> = listOf(
                 UserCoupon(
-                    1L, userId, 1L, "신규가입쿠폰", 2000L,
-                    UserCouponStatus.ACTIVE, fixedTime, null, fixedTime.plusDays(30)
+                    id = 1L, userId = userId, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                    status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
                 ),
                 UserCoupon(
-                    2L, userId, 2L, "생일할인쿠폰", 5000L,
-                    UserCouponStatus.USED, fixedTime, fixedTime, fixedTime.plusDays(30)
+                    id = 2L, userId = userId, couponId = 2L, couponName = "생일할인쿠폰", discount = 5000L,
+                    status = UserCouponStatus.USED, issuedAt = fixedTime, usedAt = fixedTime, validUntil = fixedTime.plusDays(30)
                 )
             )
-            every { userService.requireUserExists(any()) } just Runs
+            every { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
             every { couponPort.findAllUserCoupons(userId) } returns expectedCoupons
 
             // when
-            val result = couponService.readUserCoupons(userId)
+            val result: List<UserCoupon> = couponService.findAllUserCoupons(userId)
 
             // then
             result shouldBe expectedCoupons
@@ -148,11 +153,11 @@ class CouponServiceTest : ServiceTestBase() {
         fun returnsEmptyListWhenNoCoupons() {
             // given
             val userId = 1L
-            every { userService.requireUserExists(any()) } just Runs
+            every { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
             every { couponPort.findAllUserCoupons(userId) } returns emptyList()
 
             // when
-            val result = couponService.readUserCoupons(userId)
+            val result: List<UserCoupon> = couponService.findAllUserCoupons(userId)
 
             // then
             result shouldBe emptyList()
@@ -171,16 +176,16 @@ class CouponServiceTest : ServiceTestBase() {
             val userId = 1L
             val couponId = 1L
             val expectedUserCoupon = UserCoupon(
-                1L, userId, couponId, "신규가입쿠폰", 2000L,
-                UserCouponStatus.ACTIVE, fixedTime, null, fixedTime.plusDays(30)
+                id = 1L, userId = userId, couponId = couponId, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
             )
 
-            coEvery { userService.requireUserExists(any()) } just Runs
-            coEvery { couponPort.existsCoupon(any()) } returns true
+            coEvery { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
+            coEvery { couponPort.existsCoupon(couponId = any()) } returns true
             coEvery { couponPort.issueCoupon(couponId) } returns expectedUserCoupon
 
             // when
-            val result = couponService.issueCoupon(userId, couponId)
+            val result: UserCoupon = couponService.issueCoupon(userId, couponId)
 
             // then
             result shouldBe expectedUserCoupon
@@ -194,18 +199,18 @@ class CouponServiceTest : ServiceTestBase() {
             val userId = 1L
             val couponId = 1L
             val issuedUserCoupon = UserCoupon(
-                1L, userId, couponId, "신규가입쿠폰", 2000L,
-                UserCouponStatus.ACTIVE, fixedTime, null, fixedTime.plusDays(30)
+                id = 1L, userId = userId, couponId = couponId, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
             )
 
-            coEvery { userService.requireUserExists(any()) } just Runs
-            coEvery { couponPort.existsCoupon(any()) } returns true
+            coEvery { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
+            coEvery { couponPort.existsCoupon(couponId = any()) } returns true
             coEvery { couponPort.issueCoupon(couponId) } returns issuedUserCoupon
             // 실패 상황을 시뮬레이션하기 위해 예외를 발생시킬 수는 없지만,
             // 정상 케이스를 통해 CompensationScope의 구조를 검증
 
             // when
-            val result = couponService.issueCoupon(userId, couponId)
+            val result: UserCoupon = couponService.issueCoupon(userId, couponId)
 
             // then
             result shouldBe issuedUserCoupon
@@ -222,12 +227,12 @@ class CouponServiceTest : ServiceTestBase() {
         fun canUseActiveCoupon() {
             // given
             val userCoupon = UserCoupon(
-                1L, 1L, 1L, "신규가입쿠폰", 2000L,
-                UserCouponStatus.ACTIVE, fixedTime, null, fixedTime.plusDays(30)
+                id = 1L, userId = 1L, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
             )
 
             // when
-            userCoupon.use(fixedTime)
+            userCoupon.use(now = fixedTime)
 
             // then
             userCoupon.status shouldBe UserCouponStatus.USED
@@ -239,13 +244,13 @@ class CouponServiceTest : ServiceTestBase() {
         fun cannotUseUsedCoupon() {
             // given
             val userCoupon = UserCoupon(
-                1L, 1L, 1L, "신규가입쿠폰", 2000L,
-                UserCouponStatus.USED, fixedTime, fixedTime, fixedTime.plusDays(30)
+                id = 1L, userId = 1L, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.USED, issuedAt = fixedTime, usedAt = fixedTime, validUntil = fixedTime.plusDays(30)
             )
 
             // when & then
             shouldThrow<UserCouponCantBeUsedException> {
-                userCoupon.use(fixedTime)
+                userCoupon.use(now = fixedTime)
             }
         }
 
@@ -253,15 +258,15 @@ class CouponServiceTest : ServiceTestBase() {
         @DisplayName("만료된 쿠폰은 사용할 수 없다")
         fun cannotUseExpiredCoupon() {
             // given
-            val expiredTime = fixedTime.plusDays(31) // 만료일 이후
+            val expiredTime: ZonedDateTime = fixedTime.plusDays(31) // 만료일 이후
             val userCoupon = UserCoupon(
-                1L, 1L, 1L, "신규가입쿠폰", 2000L,
-                UserCouponStatus.EXPIRED, fixedTime, null, fixedTime.plusDays(30)
+                id = 1L, userId = 1L, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.EXPIRED, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
             )
 
             // when & then
             shouldThrow<UserCouponCantBeUsedException> {
-                userCoupon.use(expiredTime)
+                userCoupon.use(now = expiredTime)
             }
         }
 
@@ -270,8 +275,8 @@ class CouponServiceTest : ServiceTestBase() {
         fun canUndoUsedCoupon() {
             // given
             val userCoupon = UserCoupon(
-                1L, 1L, 1L, "신규가입쿠폰", 2000L,
-                UserCouponStatus.USED, fixedTime, fixedTime, fixedTime.plusDays(30)
+                id = 1L, userId = 1L, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.USED, issuedAt = fixedTime, usedAt = fixedTime, validUntil = fixedTime.plusDays(30)
             )
 
             // when
@@ -287,13 +292,13 @@ class CouponServiceTest : ServiceTestBase() {
         fun cannotUndoUnusedCoupon() {
             // given
             val userCoupon = UserCoupon(
-                1L, 1L, 1L, "신규가입쿠폰", 2000L,
-                UserCouponStatus.ACTIVE, fixedTime, null, fixedTime.plusDays(30)
+                id = 1L, userId = 1L, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
             )
 
             // when & then
             shouldThrow<UserCouponIsNotUsedButTriedToBeUnusedException> {
-                userCoupon.undoUsage(fixedTime)
+                userCoupon.undoUsage(now = fixedTime)
             }
         }
 
