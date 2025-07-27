@@ -3,6 +3,14 @@ package kr.hhplus.be.server.service.transaction
 import java.util.*
 
 class CompensationScope {
+    companion object {
+        suspend fun <T> runTransaction(block: suspend CompensationScope.() -> T): T {
+            val scope = CompensationScope()
+            return scope.executeWithCompensation(block)
+        }
+    }
+
+
     private val stack = Stack<suspend () -> Unit>()
 
     suspend fun <T> execute(block: suspend () -> T): CompensatedResult<T> {
@@ -26,12 +34,29 @@ class CompensationScope {
         }
     }
 
-    class CompensatedResult<T>(
+    suspend fun <T> executeWithCompensation(block: suspend CompensationScope.() -> T): T {
+        try{
+            val result = block()
+            return result
+        }
+        catch(ex: Exception){
+            this.rollbackAll()
+            throw ex
+        }
+    }
+
+
+    inner class CompensatedResult<T>(
         val result: T,
         private val registerRollback: suspend (suspend () -> Unit) -> Unit
     ) {
+        suspend fun compensateBy(rollback: suspend (T) -> Unit): T {
+            registerRollback { rollback(result) }
+            return result
+        }
+
         suspend fun compensate(rollback: suspend () -> Unit): T {
-            registerRollback(rollback)
+            registerRollback { rollback }
             return result
         }
     }
