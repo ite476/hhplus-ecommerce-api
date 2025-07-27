@@ -2,8 +2,8 @@ package kr.hhplus.be.server.service.product.service
 
 import kr.hhplus.be.server.service.product.entity.Product
 import kr.hhplus.be.server.service.product.entity.ProductSaleSummary
-import kr.hhplus.be.server.service.product.exception.ProductNotFoundException
 import kr.hhplus.be.server.service.product.port.ProductPort
+import kr.hhplus.be.server.service.product.usecase.*
 import kr.hhplus.be.server.util.KoreanTimeProvider
 import org.springframework.stereotype.Service
 import java.time.Duration
@@ -13,63 +13,53 @@ import java.time.ZonedDateTime
 class ProductService(
     val productPort: ProductPort,
     val timeProvider: KoreanTimeProvider
-) {
-    fun readProducts() : List<Product> {
-        val products = productPort.findAllProducts()
+) : FindProductByIdUsecase,
+    FindAllProductsUsecase,
+    FindAllPopularProductsUsecase,
+    AddProductStockUsecase,
+    ReduceProductStockUsecase {
+    override fun findAllProducts() : List<Product> {
+        val products: List<Product> = productPort.findAllProducts()
+            .onEach { it.requiresId() }
 
         return products
     }
 
-    fun readSingleProduct(
+    override fun findProductById(
         productId: Long
     ) : Product {
-        requireProductExists(productId)
-
-        val product = productPort.findProductById(productId)
+        val product: Product = productPort.findProductById(productId)
+        product.requiresId()
 
         return product
     }
 
-    fun requireProductExists(productId: Long) {
-        if (!existsProduct(productId)){
-            throw ProductNotFoundException()
-        }
-    }
-
-    fun existsProduct(productId: Long) : Boolean {
-        return productPort.existsProduct(productId)
-    }
-
-    fun readPopularProducts() : List<ProductSaleSummary> {
-        val now = timeProvider.now();
-        val searchPeriod =  Duration.ofDays(3)
+    override fun findAllPopularProducts() : List<ProductSaleSummary> {
+        val now: ZonedDateTime = timeProvider.now();
+        val searchPeriod: Duration =  Duration.ofDays(/* days = */ 3)
         val fetchSize = 5
 
-        val popularProducts = productPort.findAllPopularProducts(
-            now,
-            searchPeriod,
-            fetchSize
+        val popularProducts: List<ProductSaleSummary> = productPort.findAllPopularProducts(
+            whenSearch = now,
+            searchPeriod = searchPeriod,
+            fetchSize = fetchSize
         )
 
         return popularProducts
     }
 
-    fun addProductStock(productId: Long, quantity: Int, now: ZonedDateTime) {
-        requireProductExists(productId)
+    override fun addProductStock(productId: Long, quantity: Int, now: ZonedDateTime) {
+        val product: Product = findProductById(productId)
 
-        val product = productPort.findProductById(productId)
-
-        product.addStock(quantity, now)
+        product.addStock(quantity = quantity, now = now)
 
         productPort.saveProduct(product)
     }
 
-    fun reduceProductStock(productId: Long, quantity: Int, now: ZonedDateTime) {
-        requireProductExists(productId)
+    override fun reduceProductStock(productId: Long, quantity: Int, now: ZonedDateTime) {
+        val product: Product = findProductById(productId)
 
-        val product = productPort.findProductById(productId)
-
-        product.reduceStock(quantity, now)
+        product.reduceStock(quantity = quantity, now = now)
 
         productPort.saveProduct(product)
     }
