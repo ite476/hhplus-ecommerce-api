@@ -7,10 +7,12 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 
-import kr.hhplus.be.server.controller.common.advise.GlobalExceptionHandler
+import kr.hhplus.be.server.controller.advise.GlobalExceptionHandler
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
 import kr.hhplus.be.server.service.coupon.entity.UserCouponStatus
 import kr.hhplus.be.server.service.coupon.service.CouponService
+import kr.hhplus.be.server.service.exception.BusinessConflictException
+import kr.hhplus.be.server.service.exception.BusinessUnacceptableException
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.test.web.reactive.server.expectBody
@@ -128,8 +130,8 @@ class CouponControllerTest : BehaviorSpec({
 
         When("중복 발급으로 실패하면") {
             beforeTest {
-                coEvery { couponService.issueCoupon(userId, couponId) } throws 
-                    kr.hhplus.be.server.service.common.exception.BusinessConflictException("이미 발급받은 쿠폰입니다.")
+                coEvery { couponService.issueCoupon(userId, couponId) } throws
+                        BusinessConflictException("이미 발급받은 쿠폰입니다.")
             }
 
             Then("409 Conflict를 반환한다") {
@@ -143,8 +145,8 @@ class CouponControllerTest : BehaviorSpec({
 
         When("쿠폰 재고 부족으로 실패하면") {
             beforeTest {
-                coEvery { couponService.issueCoupon(userId, couponId) } throws 
-                    kr.hhplus.be.server.service.common.exception.BusinessUnacceptableException("쿠폰 재고가 부족합니다.")
+                coEvery { couponService.issueCoupon(userId, couponId) } throws
+                        BusinessUnacceptableException("쿠폰 재고가 부족합니다.")
             }
 
             Then("422 Unprocessable Entity를 반환한다") {
