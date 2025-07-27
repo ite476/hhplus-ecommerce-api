@@ -5,10 +5,10 @@ import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kr.hhplus.be.server.controller.common.advise.GlobalExceptionHandler
+import kr.hhplus.be.server.controller.advise.GlobalExceptionHandler
 import kr.hhplus.be.server.controller.v1.order.request.OrderItemRequest
 import kr.hhplus.be.server.controller.v1.order.request.PostOrderRequestBody
-import kr.hhplus.be.server.service.common.exception.BusinessUnacceptableException
+import kr.hhplus.be.server.service.exception.BusinessUnacceptableException
 import kr.hhplus.be.server.service.coupon.exception.UserCouponCantBeUsedException
 import kr.hhplus.be.server.service.order.entity.Order
 import kr.hhplus.be.server.service.order.entity.OrderItem

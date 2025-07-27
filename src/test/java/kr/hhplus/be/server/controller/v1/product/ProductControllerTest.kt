@@ -5,7 +5,7 @@ import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
-import kr.hhplus.be.server.controller.common.advise.GlobalExceptionHandler
+import kr.hhplus.be.server.controller.advise.GlobalExceptionHandler
 import kr.hhplus.be.server.service.product.entity.Product
 import kr.hhplus.be.server.service.product.entity.ProductSaleSummary
 import kr.hhplus.be.server.service.product.service.ProductService
