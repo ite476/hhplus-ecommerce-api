@@ -1,10 +1,10 @@
 package kr.hhplus.be.server.controller.v1.point
-
 import io.swagger.v3.oas.annotations.tags.Tag
 import kr.hhplus.be.server.controller.v1.point.request.PatchPointChargeRequestBody
 import kr.hhplus.be.server.controller.v1.point.response.GetPointResponse
-import kr.hhplus.be.server.service.point.service.PointService
-import kr.hhplus.be.server.service.user.service.UserService
+import kr.hhplus.be.server.service.point.usecase.ChargePointUsecase
+import kr.hhplus.be.server.service.user.entity.User
+import kr.hhplus.be.server.service.user.usecase.FindUserByIdUsecase
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.net.URI
@@ -13,8 +13,8 @@ import java.net.URI
 @RequestMapping("/api/v1/point")
 @Tag(name = "Point API", description = "포인트 API")
 class PointController(
-    val pointService: PointService,
-    val userService: UserService
+    val chargePointUsecase: ChargePointUsecase,
+    val findUserByIdUsecase: FindUserByIdUsecase
     ) : PointApiSpec {
 
     @PatchMapping("charge")
@@ -22,7 +22,7 @@ class PointController(
         @RequestHeader userId: Long,
         @RequestBody body: PatchPointChargeRequestBody
     ) : ResponseEntity<Object> {
-        pointService.chargePoint(userId, body.amount)
+        chargePointUsecase.chargePoint(userId, body.amount)
 
         return ResponseEntity.created(URI.create("/point"))
             .build()
@@ -32,11 +32,12 @@ class PointController(
     override fun readPoint(
         @RequestHeader userId: Long
     ) : ResponseEntity<GetPointResponse> {
-        val userPoint = userService.readSingleUser(userId)
+        val user: User = findUserByIdUsecase.findUserById(userId)
+        val userId: Long = user.requiresId()
 
         val pointResponse = GetPointResponse(
-            userPoint.id,
-            userPoint.point
+            userId = userId,
+            point = user.point
         )
 
         return ResponseEntity.ok(pointResponse)

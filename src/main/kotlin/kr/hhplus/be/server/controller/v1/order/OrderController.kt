@@ -4,7 +4,9 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import kr.hhplus.be.server.controller.v1.order.request.PostOrderRequestBody
 import kr.hhplus.be.server.controller.v1.order.response.OrderItemResponse
 import kr.hhplus.be.server.controller.v1.order.response.PostOrderResponse
+import kr.hhplus.be.server.service.order.entity.Order
 import kr.hhplus.be.server.service.order.service.OrderService
+import kr.hhplus.be.server.service.order.usecase.CreateOrderUsecase
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
@@ -12,7 +14,7 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/v1/orders")
 @Tag(name = "Order API", description = "주문 API")
 class OrderController(
-    val orderService: OrderService
+    val createOrderUsecase: CreateOrderUsecase
     ) : OrderApiSpec {
 
     @PostMapping("")
@@ -20,36 +22,36 @@ class OrderController(
         @RequestHeader userId: Long,
         @RequestBody body: PostOrderRequestBody
     ): ResponseEntity<PostOrderResponse> {
-        val order = orderService.createOrder(OrderService.CreateOrderInput(
-            userId,
-            body.orderItems.map {
+        val order: Order = createOrderUsecase.createOrder(OrderService.CreateOrderInput(
+            userId = userId,
+            products = body.orderItems.map {
                 OrderService.CreateOrderInput.ProductWithQuantity(
-                    it.productId,
-                    it.quantity
+                    productId = it.productId,
+                    quantity = it.quantity
                 )
             },
-            body.couponId
+            userCouponId = body.couponId
         ))
 
         // 엔티티 persist 보증
-        val persistedOrderId = requireNotNull(order.id) { "주문이 정상적으로 생성되지 않았습니다." }
+        val persistedOrderId: Long = requireNotNull(value = order.id) { "주문이 정상적으로 생성되지 않았습니다." }
 
         val orderResponse = PostOrderResponse(
-            persistedOrderId,
-            order.totalProductsPrice,
-            order.purchasedPrice,
-            order.discountedPrice,
-            order.orderItems.map {
+            orderId = persistedOrderId,
+            totalAmount = order.totalProductsPrice,
+            usedPoint = order.purchasedPrice,
+            couponDiscountAmount = order.discountedPrice,
+            orderItems = order.orderItems.map {
                 OrderItemResponse(
-                    it.productId,
-                    it.productName,
-                    it.unitPrice,
-                    it.quantity,
-                    it.totalPrice,
+                    productId = it.productId,
+                    productName = it.productName,
+                    unitPrice = it.unitPrice,
+                    quantity = it.quantity,
+                    totalPrice = it.totalPrice,
                 )
-            },
+            }
         )
 
-        return ResponseEntity.ok(orderResponse)
+        return ResponseEntity.ok(/* body = */ orderResponse)
     }
 }
