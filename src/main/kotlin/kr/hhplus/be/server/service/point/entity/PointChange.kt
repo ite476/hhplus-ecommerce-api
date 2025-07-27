@@ -3,7 +3,7 @@ package kr.hhplus.be.server.service.point.entity
 import java.time.ZonedDateTime
 
 class PointChange (
-    val id: Long,
+    val id: Long? = null,
     val userId: Long,
     val pointChange: Long,
     val type: PointChangeType,
