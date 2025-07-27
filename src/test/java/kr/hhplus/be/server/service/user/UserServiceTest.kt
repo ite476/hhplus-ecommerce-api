@@ -30,42 +30,7 @@ class UserServiceTest : ServiceTestBase() {
     }
 
     @Nested
-    @DisplayName("existsUser 메서드는")
-    inner class ExistsUserTest {
-
-        @Test
-        @DisplayName("회원이 존재할 때 true를 반환한다")
-        fun returnsTrueWhenUserExists() {
-            // given
-            val userId = 1L
-            every { userPort.existsUser(userId) } returns true
-
-            // when
-            val result = userService.existsUser(userId)
-
-            // then
-            result shouldBe true
-            verify { userPort.existsUser(userId) }
-        }
-
-        @Test
-        @DisplayName("회원이 존재하지 않을 때 false를 반환한다")
-        fun returnsFalseWhenUserDoesNotExist() {
-            // given
-            val userId = 999L
-            every { userPort.existsUser(userId) } returns false
-
-            // when
-            val result = userService.existsUser(userId)
-
-            // then
-            result shouldBe false
-            verify { userPort.existsUser(userId) }
-        }
-    }
-
-    @Nested
-    @DisplayName("readSingleUser 메서드는")
+    @DisplayName("findUserById 메서드는")
     inner class ReadSingleUserTest {
 
         @Test
@@ -75,16 +40,14 @@ class UserServiceTest : ServiceTestBase() {
             val userId = 1L
             val expectedUser = User(userId, "김철수", 10000L)
             
-            every { userPort.existsUser(userId) } returns true
-            every { userPort.readSingleUser(userId) } returns expectedUser
+            every { userPort.findUserById(userId) } returns expectedUser
 
             // when
-            val result = userService.readSingleUser(userId)
+            val result = userService.findUserById(userId)
 
             // then
             result shouldBe expectedUser
-            verify { userPort.existsUser(userId) }
-            verify { userPort.readSingleUser(userId) }
+            verify { userPort.findUserById(userId) }
         }
 
         @Test
@@ -92,20 +55,19 @@ class UserServiceTest : ServiceTestBase() {
         fun throwsUserNotFoundExceptionWhenUserDoesNotExist() {
             // given
             val userId = 999L
-            every { userPort.existsUser(userId) } returns false
+            every { userPort.findUserById(userId) } throws UserNotFoundException()
 
             // when & then
             shouldThrow<UserNotFoundException> {
-                userService.readSingleUser(userId)
+                userService.findUserById(userId)
             }
             
-            verify { userPort.existsUser(userId) }
-            verify(exactly = 0) { userPort.readSingleUser(any()) }
+            verify { userPort.findUserById(any()) }
         }
     }
 
     @Nested
-    @DisplayName("requireUserExists 메서드는")
+    @DisplayName("requireUserIdExists 메서드는")
     inner class RequireUserExistsTest {
 
         @Test
@@ -116,7 +78,7 @@ class UserServiceTest : ServiceTestBase() {
             every { userPort.existsUser(userId) } returns true
 
             // when & then
-            userService.requireUserExists(userId)
+            userService.requireUserIdExists(userId)
             
             verify { userPort.existsUser(userId) }
         }
@@ -130,7 +92,7 @@ class UserServiceTest : ServiceTestBase() {
 
             // when & then
             shouldThrow<UserNotFoundException> {
-                userService.requireUserExists(userId)
+                userService.requireUserIdExists(userId)
             }
             
             verify { userPort.existsUser(userId) }
