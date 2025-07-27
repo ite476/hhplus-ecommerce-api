@@ -1,4 +1,4 @@
-package kr.hhplus.be.server.service.common.exception
+package kr.hhplus.be.server.service.exception
 
 open class UnexpectedBusinessFailureException(
     message: String,
