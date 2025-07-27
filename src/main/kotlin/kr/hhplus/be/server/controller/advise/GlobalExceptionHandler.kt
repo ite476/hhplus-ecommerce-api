@@ -1,8 +1,8 @@
-package kr.hhplus.be.server.controller.common.advise
+package kr.hhplus.be.server.controller.advise
 
-import kr.hhplus.be.server.service.common.exception.BusinessConflictException
-import kr.hhplus.be.server.service.common.exception.BusinessUnacceptableException
-import kr.hhplus.be.server.service.common.exception.ResourceNotFoundException
+import kr.hhplus.be.server.service.exception.BusinessConflictException
+import kr.hhplus.be.server.service.exception.BusinessUnacceptableException
+import kr.hhplus.be.server.service.exception.ResourceNotFoundException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
