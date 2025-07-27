@@ -1,6 +1,5 @@
 package kr.hhplus.be.server.service.order.service
 
-import kr.hhplus.be.server.service.common.transaction.CompensationScope
 import kr.hhplus.be.server.service.coupon.service.CouponService
 import kr.hhplus.be.server.service.order.entity.Order
 import kr.hhplus.be.server.service.order.port.DataPlatformPort
@@ -8,6 +7,7 @@ import kr.hhplus.be.server.service.order.port.OrderPort
 import kr.hhplus.be.server.service.point.service.PointService
 import kr.hhplus.be.server.service.product.entity.ProductSale
 import kr.hhplus.be.server.service.product.service.ProductService
+import kr.hhplus.be.server.service.transaction.CompensationScope
 import kr.hhplus.be.server.service.user.service.UserService
 import kr.hhplus.be.server.util.KoreanTimeProvider
 import org.springframework.stereotype.Service
