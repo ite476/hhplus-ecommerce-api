@@ -1,10 +1,10 @@
 package kr.hhplus.be.server.service.coupon.service
 
-import kr.hhplus.be.server.service.common.transaction.CompensationScope
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
 import kr.hhplus.be.server.service.coupon.exception.CouponNotFoundException
 import kr.hhplus.be.server.service.coupon.exception.UserCouponNotFoundException
 import kr.hhplus.be.server.service.coupon.port.CouponPort
+import kr.hhplus.be.server.service.transaction.CompensationScope
 import kr.hhplus.be.server.service.user.service.UserService
 import kr.hhplus.be.server.util.KoreanTimeProvider
 import org.springframework.stereotype.Service
