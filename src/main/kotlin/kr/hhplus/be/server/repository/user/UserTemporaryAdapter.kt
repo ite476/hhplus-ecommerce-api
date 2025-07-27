@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component
 
 @Component
 class UserTemporaryAdapter : UserPort {
-    override fun readSingleUser(userId: Long): User {
+    override fun findUserById(userId: Long): User {
         TODO("Not yet implemented")
     }
 
