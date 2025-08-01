@@ -27,6 +27,8 @@ class UserService (
     }
 
     override fun requireUserIdExists(userId: Long) {
-        if(!existsUser(userId)) throw UserNotFoundException()
+        require(existsUser(userId)) {
+            throw UserNotFoundException()
+        }
     }
 }
