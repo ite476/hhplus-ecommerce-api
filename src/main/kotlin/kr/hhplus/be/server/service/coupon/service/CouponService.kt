@@ -4,10 +4,12 @@ import kr.hhplus.be.server.service.coupon.entity.UserCoupon
 import kr.hhplus.be.server.service.coupon.exception.CouponNotFoundException
 import kr.hhplus.be.server.service.coupon.exception.UserCouponNotFoundException
 import kr.hhplus.be.server.service.coupon.port.CouponPort
-import kr.hhplus.be.server.service.coupon.usecase.FindAllUserCouponsUsecase
+import kr.hhplus.be.server.service.coupon.usecase.FindPagedUserCouponsUsecase
 import kr.hhplus.be.server.service.coupon.usecase.FindUserCouponByIdUsecase
 import kr.hhplus.be.server.service.coupon.usecase.IssueCouponUsecase
 import kr.hhplus.be.server.service.coupon.usecase.UseUserCouponUsecase
+import kr.hhplus.be.server.service.pagination.PagedList
+import kr.hhplus.be.server.service.pagination.PagingOptions
 import kr.hhplus.be.server.service.transaction.CompensationScope
 import kr.hhplus.be.server.service.user.usecase.RequiresUserIdExistsUsecase
 import kr.hhplus.be.server.util.KoreanTimeProvider
@@ -21,7 +23,7 @@ class CouponService (
     val timeProvider: KoreanTimeProvider
     ) : FindUserCouponByIdUsecase,
     UseUserCouponUsecase,
-    FindAllUserCouponsUsecase,
+    FindPagedUserCouponsUsecase,
     IssueCouponUsecase {
     override fun findUserCouponById(
         userId: Long,
@@ -48,10 +50,10 @@ class CouponService (
         couponPort.saveUserCoupon(userCoupon)
     }
 
-    override fun findAllUserCoupons(userId: Long) : List<UserCoupon> {
+    override fun findPagedUserCoupons(userId: Long, pagingOptions: PagingOptions) : PagedList<UserCoupon> {
         requireUserIdExistsUsecase.requireUserIdExists(userId)
 
-        val userCoupons: List<UserCoupon> = couponPort.findAllUserCoupons(userId)
+        val userCoupons: PagedList<UserCoupon> = couponPort.findPagedUserCoupons(userId, pagingOptions)
 
         return userCoupons
     }
