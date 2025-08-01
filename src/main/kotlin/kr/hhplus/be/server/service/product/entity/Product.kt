@@ -8,7 +8,7 @@ class Product(
     val id: Long? = null,
     name: String,
     price: Long,
-    stock: Int,
+    stock: Long,
     val createdAt: ZonedDateTime
 ) {
     var name: String = name
@@ -17,10 +17,10 @@ class Product(
     var price: Long = price
         private set
 
-    var stock: Int = stock
+    var stock: Long = stock
         private set
 
-    fun addStock(quantity: Int, now: ZonedDateTime)
+    fun addStock(quantity: Long, now: ZonedDateTime)
     {
         stock += quantity
     }

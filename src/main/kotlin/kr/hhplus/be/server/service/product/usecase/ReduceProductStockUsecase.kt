@@ -6,5 +6,5 @@ interface ReduceProductStockUsecase {
     /**
      * 상품 재고 차감 처리
      */
-    fun reduceProductStock(productId: Long, quantity: Int, now: ZonedDateTime)
+    fun reduceProductStock(productId: Long, quantity: Long, now: ZonedDateTime)
 }

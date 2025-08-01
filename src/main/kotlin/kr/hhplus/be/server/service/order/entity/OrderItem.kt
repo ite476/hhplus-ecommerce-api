@@ -5,7 +5,7 @@ class OrderItem (
     val productId: Long,
     val productName: String,
     val unitPrice: Long,
-    val quantity: Int
+    val quantity: Long
 ) {
   val totalPrice: Long
       get()  = unitPrice * quantity
