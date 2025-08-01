@@ -4,9 +4,8 @@
 
 ```text
 service/
-├── common/
-│   ├── exception/                 # 공통 비즈니스 예외 상속 base
-│   └── transaction/               # SAGA 패턴 트랜잭션 구현체 
+├── exception/                 # 공통 비즈니스 예외 상속 base
+├── transaction/               # SAGA 패턴 트랜잭션 구현체 
 ├── user/
 │   ├── entity/                    # User, UserProfile 등
 │   ├── exception/                 # UserNotFoundException 등   
