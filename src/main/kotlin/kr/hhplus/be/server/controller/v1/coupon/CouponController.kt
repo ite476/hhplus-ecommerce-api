@@ -1,61 +1,52 @@
 package kr.hhplus.be.server.controller.v1.coupon
 
 import io.swagger.v3.oas.annotations.tags.Tag
+import kotlinx.coroutines.runBlocking
+import kr.hhplus.be.server.controller.dto.request.PagingOptionsRequestParam
 import kr.hhplus.be.server.controller.v1.coupon.response.GetMyCouponsResponse
-import kr.hhplus.be.server.controller.v1.coupon.response.MyCouponInfo
 import kr.hhplus.be.server.controller.v1.coupon.response.PostCouponIssueResponse
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
-import kr.hhplus.be.server.service.coupon.usecase.FindAllUserCouponsUsecase
+import kr.hhplus.be.server.service.coupon.usecase.FindPagedUserCouponsUsecase
 import kr.hhplus.be.server.service.coupon.usecase.IssueCouponUsecase
+import kr.hhplus.be.server.service.pagination.PagedList
+import org.springdoc.core.annotations.ParameterObject
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.net.URI
 
 @RestController
 @RequestMapping("/api/v1")
 @Tag(name = "Coupon API", description = "쿠폰 API")
 class CouponController(
-    val findAllUserCouponsUsecase: FindAllUserCouponsUsecase,
+    val findAllUserCouponsUsecase: FindPagedUserCouponsUsecase,
     val issueCouponUsecase: IssueCouponUsecase
     ) : CouponApiSpec {
 
     @GetMapping("/mycoupons")
     override fun getMyCoupons(
-        @RequestHeader userId: Long
+        @RequestHeader userId: Long,
+        @ParameterObject pagingOptions: PagingOptionsRequestParam
     ): ResponseEntity<GetMyCouponsResponse> {
-        val userCoupons: List<UserCoupon> = findAllUserCouponsUsecase.findAllUserCoupons(userId)
+        val userCoupons: PagedList<UserCoupon> = findAllUserCouponsUsecase.findPagedUserCoupons(userId, pagingOptions.toPagingOptions())
 
-        val couponsRespone = GetMyCouponsResponse(
-            coupons = userCoupons.map {
-                MyCouponInfo(
-                    userCouponId = it.id,
-                    couponName = it.couponName,
-                    discountAmount = it.discount,
-                    isUsable = it.isUsable(),
-                    issuedAt = it.issuedAt,
-                    validUntil = it.validUntil,
-                    usedAt = it.usedAt,
-                )
-            }
-        )
+        val couponsRespone: GetMyCouponsResponse = GetMyCouponsResponse.fromEntity(userCoupons)
 
         return ResponseEntity.ok(couponsRespone)
     }
 
     @PostMapping("/coupons/{couponId}")
-    override suspend fun issueCoupon(
+    override fun issueCoupon(
         @RequestHeader userId: Long,
         @PathVariable couponId: Long
     ): ResponseEntity<PostCouponIssueResponse> {
-        val issuedCoupon: UserCoupon = issueCouponUsecase.issueCoupon(userId, couponId);
+        val issuedCoupon: UserCoupon = runBlocking {
+            issueCouponUsecase.issueCoupon(userId, couponId);
+        }
 
-        val issuedCouponResponse = PostCouponIssueResponse(
-            couponId = issuedCoupon.id,
-            couponName = issuedCoupon.couponName,
-            discountAmount = issuedCoupon.discount,
-            validUntil = issuedCoupon.validUntil,
-            issuedAt = issuedCoupon.issuedAt,
-        )
+        val issuedCouponResponse: PostCouponIssueResponse = PostCouponIssueResponse.fromEntity(issuedCoupon)
 
-        return ResponseEntity.ok(issuedCouponResponse)
+        return ResponseEntity
+            .created(URI.create("/mycoupons"))
+            .body(issuedCouponResponse)
     }
 }

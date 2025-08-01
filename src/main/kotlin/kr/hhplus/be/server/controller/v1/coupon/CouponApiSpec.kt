@@ -5,8 +5,10 @@ import io.swagger.v3.oas.annotations.headers.Header
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.ExampleObject
 import io.swagger.v3.oas.annotations.responses.ApiResponse
+import kr.hhplus.be.server.controller.dto.request.PagingOptionsRequestParam
 import kr.hhplus.be.server.controller.v1.coupon.response.GetMyCouponsResponse
 import kr.hhplus.be.server.controller.v1.coupon.response.PostCouponIssueResponse
+import org.springdoc.core.annotations.ParameterObject
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestHeader
@@ -70,7 +72,8 @@ interface CouponApiSpec {
         ]
     )
     fun getMyCoupons(
-        @RequestHeader userId: Long
+        @RequestHeader userId: Long,
+        @ParameterObject pagingOptions: PagingOptionsRequestParam
     ): ResponseEntity<GetMyCouponsResponse>
 
     @Operation(
@@ -150,7 +153,7 @@ interface CouponApiSpec {
             )
         ]
     )
-    suspend fun issueCoupon(
+    fun issueCoupon(
         @RequestHeader userId: Long,
         @PathVariable couponId: Long
     ): ResponseEntity<PostCouponIssueResponse>

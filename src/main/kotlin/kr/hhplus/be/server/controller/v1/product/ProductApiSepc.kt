@@ -4,8 +4,10 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.ExampleObject
 import io.swagger.v3.oas.annotations.responses.ApiResponse
+import kr.hhplus.be.server.controller.dto.request.PagingOptionsRequestParam
 import kr.hhplus.be.server.controller.v1.product.response.GetProductsPopularResponse
 import kr.hhplus.be.server.controller.v1.product.response.GetProductsResponse
+import org.springdoc.core.annotations.ParameterObject
 import org.springframework.http.ResponseEntity
 
 interface ProductApiSepc {
@@ -42,7 +44,9 @@ interface ProductApiSepc {
             ),
         ]
     )
-    fun getProducts(): ResponseEntity<List<GetProductsResponse>>
+    fun getProducts(
+        @ParameterObject pagingOptions: PagingOptionsRequestParam
+    ): ResponseEntity<GetProductsResponse>
 
     @Operation(
         summary = "인기 상품 조회",
@@ -79,5 +83,7 @@ interface ProductApiSepc {
             ),
         ]
     )
-    fun getPopularProducts(): ResponseEntity<List<GetProductsPopularResponse>>
+    fun getPopularProducts(
+        @ParameterObject pagingOptions: PagingOptionsRequestParam
+    ): ResponseEntity<GetProductsPopularResponse>
 }
