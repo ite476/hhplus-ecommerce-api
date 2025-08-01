@@ -27,11 +27,16 @@ class Product(
 
     fun reduceStock(quantity: Int, now: ZonedDateTime) {
         if (stock - quantity <= 0) throw LackOfProductStockException()
+        require (stock >= quantity) {
+            throw LackOfProductStockException()
+        }
 
         stock -= quantity
     }
 
     fun requiresId() : Long {
-        return requireNotNull(id) { throw ProductNotFoundException() }
+        return requireNotNull(id) {
+            throw ProductNotFoundException()
+        }
     }
 }
