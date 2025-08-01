@@ -54,6 +54,7 @@ dependencies {
 
 	// DB
 	runtimeOnly("com.mysql:mysql-connector-j")
+	implementation("p6spy:p6spy:3.9.1")
 
 	// Test
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
