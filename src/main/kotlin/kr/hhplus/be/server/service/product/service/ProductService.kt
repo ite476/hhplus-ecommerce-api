@@ -1,5 +1,7 @@
 package kr.hhplus.be.server.service.product.service
 
+import kr.hhplus.be.server.service.pagination.PagedList
+import kr.hhplus.be.server.service.pagination.PagingOptions
 import kr.hhplus.be.server.service.product.entity.Product
 import kr.hhplus.be.server.service.product.entity.ProductSaleSummary
 import kr.hhplus.be.server.service.product.port.ProductPort
@@ -14,13 +16,16 @@ class ProductService(
     val productPort: ProductPort,
     val timeProvider: KoreanTimeProvider
 ) : FindProductByIdUsecase,
-    FindAllProductsUsecase,
-    FindAllPopularProductsUsecase,
+    FindPagedProductsUsecase,
+    FindPagedPopularProductsUsecase,
     AddProductStockUsecase,
     ReduceProductStockUsecase {
-    override fun findAllProducts() : List<Product> {
-        val products: List<Product> = productPort.findAllProducts()
-            .onEach { it.requiresId() }
+    override fun findPagedProducts(pagingOptions: PagingOptions) : PagedList<Product> {
+        val products: PagedList<Product> = productPort.findPagedProducts(pagingOptions).let { paged ->
+            paged.copy(
+                items = paged.items.onEach { it.requiresId() }
+            )
+        }
 
         return products
     }
@@ -34,15 +39,14 @@ class ProductService(
         return product
     }
 
-    override fun findAllPopularProducts() : List<ProductSaleSummary> {
+    override fun findPagedPopularProducts(pagingOptions: PagingOptions): PagedList<ProductSaleSummary> {
         val now: ZonedDateTime = timeProvider.now();
         val searchPeriod: Duration =  Duration.ofDays(/* days = */ 3)
-        val fetchSize = 5
 
-        val popularProducts: List<ProductSaleSummary> = productPort.findAllPopularProducts(
+        val popularProducts: PagedList<ProductSaleSummary> = productPort.findPagedPopularProducts(
             whenSearch = now,
             searchPeriod = searchPeriod,
-            fetchSize = fetchSize
+            pagingOptions = pagingOptions
         )
 
         return popularProducts
