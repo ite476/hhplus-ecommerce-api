@@ -62,11 +62,13 @@ class CouponService (
         requireUserIdExistsUsecase.requireUserIdExists(userId)
         requireCouponExists(couponId)
 
+        val now = timeProvider.now()
+
         val issuedUserCoupon: UserCoupon = CompensationScope.runTransaction {
             execute {
                 couponPort.issueCoupon(couponId)
             }.compensateBy { coupon ->
-                couponPort.revokeCoupon(issuedUserCoupon = coupon)
+                couponPort.revokeCoupon(issuedUserCoupon = coupon, now = now)
             }
         }
 
