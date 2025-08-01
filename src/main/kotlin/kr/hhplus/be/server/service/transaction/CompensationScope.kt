@@ -11,7 +11,7 @@ class CompensationScope {
     }
 
 
-    private val stack = Stack<suspend () -> Unit>()
+    private val stack = ArrayDeque<suspend () -> Unit>() // Stack 대신 비동기 안전한 deque
 
     suspend fun <T> execute(block: suspend () -> T): CompensatedResult<T> {
         val result = block()
@@ -22,14 +22,14 @@ class CompensationScope {
         stack.push(block)
     }
 
+
     suspend fun rollbackAll() {
         while (stack.isNotEmpty()) {
+            val rollback = stack.removeLast()
             try {
-                stack.pop().invoke()
-            } catch (_: Exception) {
-                // 필요 시 로그 처리 등 후처리를 위한 공간
-                // 예외가 터져도 롤백은 해야한다
-                // 살려야한다..!!! 마인드
+                rollback() // 확실히 실행
+            } catch (ex: Exception) {
+                // TODO: 로그 남기고 무시
             }
         }
     }
@@ -48,15 +48,15 @@ class CompensationScope {
 
     inner class CompensatedResult<T>(
         val result: T,
-        private val registerRollback: suspend (suspend () -> Unit) -> Unit
+        private val registerRollbackBlock: (suspend () -> Unit) -> Unit
     ) {
         suspend fun compensateBy(rollback: suspend (T) -> Unit): T {
-            registerRollback { rollback(result) }
+            registerRollbackBlock { rollback(result) }
             return result
         }
 
         suspend fun compensate(rollback: suspend () -> Unit): T {
-            registerRollback { rollback }
+            registerRollbackBlock { rollback() }
             return result
         }
     }

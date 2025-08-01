@@ -52,7 +52,7 @@ class ProductService(
         return popularProducts
     }
 
-    override fun addProductStock(productId: Long, quantity: Int, now: ZonedDateTime) {
+    override fun addProductStock(productId: Long, quantity: Long, now: ZonedDateTime) {
         val product: Product = findProductById(productId)
 
         product.addStock(quantity = quantity, now = now)
@@ -60,7 +60,7 @@ class ProductService(
         productPort.saveProduct(product)
     }
 
-    override fun reduceProductStock(productId: Long, quantity: Int, now: ZonedDateTime) {
+    override fun reduceProductStock(productId: Long, quantity: Long, now: ZonedDateTime) {
         val product: Product = findProductById(productId)
 
         product.reduceStock(quantity = quantity, now = now)

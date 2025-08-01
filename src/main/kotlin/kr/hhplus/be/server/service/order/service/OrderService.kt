@@ -46,7 +46,7 @@ class OrderService(
     ) {
         data class ProductWithQuantity(
             val productId: Long,
-            val quantity: Int
+            val quantity: Long
         )
     }
 
@@ -118,7 +118,7 @@ class OrderService(
             val product: Product = sale.product
             val productId: Long = product.requiresId()
 
-            val quantity: Int = sale.soldCount
+            val quantity: Long = sale.soldCount
             val now: ZonedDateTime = context.now
 
 
