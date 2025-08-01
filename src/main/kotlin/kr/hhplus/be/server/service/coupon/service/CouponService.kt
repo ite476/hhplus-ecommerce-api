@@ -66,7 +66,7 @@ class CouponService (
 
         val issuedUserCoupon: UserCoupon = CompensationScope.runTransaction {
             execute {
-                couponPort.issueCoupon(couponId)
+                couponPort.issueCoupon(userId, couponId, now)
             }.compensateBy { coupon ->
                 couponPort.revokeCoupon(issuedUserCoupon = coupon, now = now)
             }
