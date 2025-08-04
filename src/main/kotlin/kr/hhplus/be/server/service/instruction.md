@@ -1,10 +1,10 @@
-# ⚙️ core 개발 지침
+# ⚙️ service 개발 지침
 
 ## 네이밍 컨벤션
 
 - **Service 클래스**: `{도메인}Service.kt`
+  - **Dto 객체**: `{도메인}{행위}Input.kt`, `{도메인}{행위}Output.kt`
 - **Entity 클래스**: `{도메인}.kt`
-- **Command 객체**: `{도메인}{동작}Command.kt`
 - **Port 인터페이스**: `{도메인}Port.kt`
 
 ```kotlin
@@ -62,13 +62,13 @@ class UserService {
 }
 ```
 
-## Command 객체 설계
+## Dto 객체 설계
 
 ### ✅ DO - 불변 객체와 검증
 
 ```kotlin
 // ✅ GOOD
-data class CreateUserCommand(
+data class CreateUserInput(
     val name: String,
     val email: String
 ) {
@@ -79,7 +79,7 @@ data class CreateUserCommand(
 }
 
 // ❌ BAD
-class CreateUserCommand {
+class CreateUserInput {
     var name: String? = null  // 가변, nullable
     var email: String? = null
     // 검증 로직 없음
@@ -113,7 +113,7 @@ interface UserPort {
 ### ✅ DO
 - 생성자 주입 방식 사용
 - `@Transactional`로 트랜잭션 경계 명시
-- Command 객체로 파라미터 그룹화
+- Dto 객체로 파라미터 그룹화
 - Port 인터페이스로 Repository 추상화
 
 ### ❌ DON'T
