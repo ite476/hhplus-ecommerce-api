@@ -165,7 +165,9 @@ class OrderService(
         }
 
         // 주문 정보를 외부 데이터 플랫폼으로 전송
-        dataPlatformPort.sendOrderData(order)
+        execute {
+            dataPlatformPort.sendOrderData(order)
+        }
 
         return order
     }
