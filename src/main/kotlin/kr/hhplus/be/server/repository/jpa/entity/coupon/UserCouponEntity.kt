@@ -12,7 +12,15 @@ import java.time.ZonedDateTime
  * 사용자 쿠폰 정보를 저장하는 JPA Entity
  */
 @Entity
-@Table(name = "user_coupon")
+@Table(
+    name = "user_coupon",
+    uniqueConstraints = [
+        UniqueConstraint(
+            name = "uk_user_coupon_user_id_coupon_id", 
+            columnNames = ["user_id", "coupon_id"]
+        )
+    ]
+)
 @SQLRestriction("deleted_at IS NULL") // Soft Delete: 삭제된 행 제외
 class UserCouponEntity(
     @ManyToOne(fetch = FetchType.LAZY)
