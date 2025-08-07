@@ -1,153 +1,256 @@
 package kr.hhplus.be.server.controller.v1.point
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import io.kotest.core.spec.style.BehaviorSpec
+import com.ninjasquad.springmockk.MockkBean
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.mockk.clearAllMocks
 import io.mockk.every
-import io.mockk.mockk
-import kr.hhplus.be.server.controller.common.advise.GlobalExceptionHandler
+import kr.hhplus.be.server.controller.advise.GlobalExceptionHandler
 import kr.hhplus.be.server.controller.v1.point.request.PatchPointChargeRequestBody
+import kr.hhplus.be.server.controller.v1.point.response.GetPointResponse
 import kr.hhplus.be.server.service.point.entity.PointChange
 import kr.hhplus.be.server.service.point.entity.PointChangeType
+import kr.hhplus.be.server.service.point.exception.PointChargeMustBeGreaterThanZeroException
 import kr.hhplus.be.server.service.point.service.PointService
 import kr.hhplus.be.server.service.user.entity.User
+import kr.hhplus.be.server.service.user.exception.UserNotFoundException
 import kr.hhplus.be.server.service.user.service.UserService
-import org.springframework.http.MediaType
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.context.annotation.Import
+import org.springframework.http.HttpStatus
+import org.springframework.test.web.client.MockMvcClientHttpRequestFactory
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.ResultActions
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientResponseException
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-class PointControllerTest : BehaviorSpec({
-
-    val pointService = mockk<PointService>()
-    val userService = mockk<UserService>()
-    val objectMapper = ObjectMapper()
-    val fixedTime = ZonedDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneId.of("Asia/Seoul"))
+@WebMvcTest(PointController::class)
+@Import(GlobalExceptionHandler::class)
+@DisplayName("PointController 테스트")
+class PointControllerTest {
+    @MockkBean
+    lateinit var pointService: PointService
     
-    lateinit var mockMvc: MockMvc
-    lateinit var apiResult: ResultActions
+    @MockkBean
+    lateinit var userService: UserService
 
-    beforeTest {
-        val controller = PointController(pointService, userService)
-        mockMvc = MockMvcBuilders.standaloneSetup(controller)
-            .setControllerAdvice(GlobalExceptionHandler())
+    private val getPointEndpoint = "/api/v1/point"
+    private val chargePointEndpoint = "/api/v1/point/charge"
+    private val fixedTime = ZonedDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneId.of("Asia/Seoul"))
+
+    @Autowired
+    lateinit var mockMvc: MockMvc
+    lateinit var restClient: RestClient
+
+    @BeforeEach
+    fun setUp() {
+        clearAllMocks()
+        restClient = RestClient.builder()
+            .requestFactory(MockMvcClientHttpRequestFactory(mockMvc))
             .build()
     }
 
-    Given("PATCH /api/v1/point/charge 포인트 충전 요청이 들어올 때") {
-        val endpoint = "/api/v1/point/charge"
+    @Test
+    @DisplayName("정상적인 포인트 조회 요청 - 포인트가 성공적으로 반환된다")
+    fun getPoint_ValidRequest_ReturnsSuccessResponse() {
+        // Given
+        val userId = 1L
+        val userPoint = 15000L
+        val user = User(userId, "김철수", userPoint)
+
+        every { userService.findUserById(userId) } returns user
+
+        // When & Then
+        val response = restClient.get()
+            .uri(getPointEndpoint)
+            .header("userId", userId.toString())
+            .retrieve()
+            .toEntity(GetPointResponse::class.java)
+
+        response.statusCode shouldBe HttpStatus.OK
+        response.body.let { body ->
+            body shouldNotBe null
+            body?.run {
+                userId shouldBe userId
+                point shouldBe userPoint
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("포인트가 0인 사용자 조회 - 0 포인트가 성공적으로 반환된다")
+    fun getPoint_ZeroPointUser_ReturnsZeroPoint() {
+        // Given
+        val userId = 3L
+        val zeroPoint = 0L
+        val user = User(userId, "박철수", zeroPoint)
+
+        every { userService.findUserById(userId) } returns user
+
+        // When & Then
+        val response = restClient.get()
+            .uri(getPointEndpoint)
+            .header("userId", userId.toString())
+            .retrieve()
+            .toEntity(GetPointResponse::class.java)
+
+        response.statusCode shouldBe HttpStatus.OK
+        response.body.let { body ->
+            body shouldNotBe null
+            body?.run {
+                point shouldBe 0L
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("정상적인 포인트 충전 요청 - 포인트가 성공적으로 충전되고 201 Created를 반환한다")
+    fun chargePoint_ValidRequest_ReturnsSuccessResponse() {
+        // Given
+        val userId = 1L
+        val chargeAmount = 10000L
+        val requestBody = PatchPointChargeRequestBody(chargeAmount)
+        val pointChange = PointChange(1L, userId, chargeAmount, PointChangeType.Charge, fixedTime)
+
+        every { pointService.chargePoint(userId, chargeAmount) } returns pointChange
+
+        // When & Then
+        val response = restClient.patch()
+            .uri(chargePointEndpoint)
+            .header("userId", userId.toString())
+            .body(requestBody)
+            .retrieve()
+            .toEntity(String::class.java)
+
+        response.statusCode shouldBe HttpStatus.CREATED
+        response.headers.location?.toString() shouldBe "/point"
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사용자의 포인트 조회 - 404 Not Found 오류를 반환한다")
+    fun getPoint_UserNotFound_Returns404Error() {
+        // Given
+        val userId = 999L
+
+        every { userService.findUserById(userId) } throws UserNotFoundException()
+
+        // When & Then
+        try {
+            restClient.get()
+                .uri(getPointEndpoint)
+                .header("userId", userId.toString())
+                .retrieve()
+                .toEntity(GetPointResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.NOT_FOUND
+            e.responseBodyAsString.contains("회원이 존재하지 않습니다.") shouldBe true
+        }
+    }
+
+    @Test
+    @DisplayName("0 이하의 포인트 충전 요청 - 422 Unprocessable Entity 오류를 반환한다")
+    fun chargePoint_InvalidAmount_Returns422Error() {
+        // Given
+        val userId = 1L
+        val invalidAmount = 0L
+        val requestBody = PatchPointChargeRequestBody(invalidAmount)
+
+        every { pointService.chargePoint(userId, invalidAmount) } throws 
+            PointChargeMustBeGreaterThanZeroException()
+
+        // When & Then
+        try {
+            restClient.patch()
+                .uri(chargePointEndpoint)
+                .header("userId", userId.toString())
+                .body(requestBody)
+                .retrieve()
+                .toEntity(String::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.UNPROCESSABLE_ENTITY
+            e.responseBodyAsString.contains("충전 포인트는 0보다 커야 합니다.") shouldBe true
+        }
+    }
+
+    @Test
+    @DisplayName("userId 헤더가 누락된 포인트 조회 - 400 Bad Request를 반환한다")
+    fun getPoint_MissingUserIdHeader_Returns400Error() {
+        // When & Then
+        try {
+            restClient.get()
+                .uri(getPointEndpoint)
+                .retrieve()
+                .toEntity(GetPointResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.BAD_REQUEST
+        }
+    }
+
+    @Test
+    @DisplayName("userId 헤더가 누락된 포인트 충전 - 400 Bad Request를 반환한다")
+    fun chargePoint_MissingUserIdHeader_Returns400Error() {
+        // Given
+        val requestBody = PatchPointChargeRequestBody(10000L)
+
+        // When & Then
+        try {
+            restClient.patch()
+                .uri(chargePointEndpoint)
+                .body(requestBody)
+                .retrieve()
+                .toEntity(String::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.BAD_REQUEST
+        }
+    }
+
+    @Test
+    @DisplayName("시스템 오류로 포인트 조회 실패 - 500 Internal Server Error를 반환한다")
+    fun getPoint_SystemError_Returns500Error() {
+        // Given
+        val userId = 1L
+
+        every { userService.findUserById(userId) } throws 
+            RuntimeException("시스템 오류가 발생했습니다.")
+
+        // When & Then
+        try {
+            restClient.get()
+                .uri(getPointEndpoint)
+                .header("userId", userId.toString())
+                .retrieve()
+                .toEntity(GetPointResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.INTERNAL_SERVER_ERROR
+        }
+    }
+
+    @Test
+    @DisplayName("시스템 오류로 포인트 충전 실패 - 500 Internal Server Error를 반환한다")
+    fun chargePoint_SystemError_Returns500Error() {
+        // Given
         val userId = 1L
         val chargeAmount = 10000L
         val requestBody = PatchPointChargeRequestBody(chargeAmount)
 
-        When("정상적인 충전 요청이면") {
-            beforeTest {
-                val pointChange = PointChange(1L, userId, chargeAmount, PointChangeType.Charge, fixedTime)
-                every { pointService.chargePoint(userId, chargeAmount) } returns pointChange
+        every { pointService.chargePoint(userId, chargeAmount) } throws 
+            RuntimeException("시스템 오류가 발생했습니다.")
 
-                apiResult = mockMvc.perform(
-                    patch(endpoint)
-                        .header("userId", userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestBody))
-                )
-            }
-
-            Then("201 Created를 반환한다") {
-                apiResult.andExpect(status().isCreated)
-            }
-
-            Then("Location 헤더에 /point를 포함한다") {
-                apiResult.andExpect(header().string("Location", "/point"))
-            }
+        // When & Then
+        try {
+            restClient.patch()
+                .uri(chargePointEndpoint)
+                .header("userId", userId.toString())
+                .body(requestBody)
+                .retrieve()
+                .toEntity(String::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.INTERNAL_SERVER_ERROR
         }
     }
-
-    Given("GET /api/v1/point 포인트 조회 요청이 들어올 때") {
-        val endpoint = "/api/v1/point"
-        val userId = 1L
-
-        When("포인트를 보유한 사용자를 조회하면") {
-            val userPoint = 15000L
-            val user = User(userId, "김철수", userPoint)
-
-            beforeTest {
-                every { userService.readSingleUser(userId) } returns user
-
-                apiResult = mockMvc.perform(
-                    get(endpoint).header("userId", userId)
-                )
-            }
-
-            Then("200 OK를 반환한다") {
-                apiResult.andExpect(status().isOk)
-            }
-
-            Then("JSON 응답을 반환한다") {
-                apiResult.andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            }
-
-            Then("사용자 ID와 포인트를 포함한다") {
-                apiResult
-                    .andExpect(jsonPath("$.userId").value(userId))
-                    .andExpect(jsonPath("$.point").value(userPoint))
-            }
-        }
-
-        When("포인트가 0인 사용자를 조회하면") {
-            val zeroPointUserId = 3L
-            val zeroPoint = 0L
-            val zeroPointUser = User(zeroPointUserId, "박철수", zeroPoint)
-
-            beforeTest {
-                every { userService.readSingleUser(zeroPointUserId) } returns zeroPointUser
-
-                apiResult = mockMvc.perform(
-                    get(endpoint).header("userId", zeroPointUserId)
-                )
-            }
-
-            Then("200 OK를 반환한다") {
-                apiResult.andExpect(status().isOk)
-            }
-
-            Then("0 포인트를 반환한다") {
-                apiResult.andExpect(jsonPath("$.point").value(0))
-            }
-        }
-    }
-
-    Given("API 응답 구조를 검증할 때") {
-        When("포인트 조회 응답을 파싱하면") {
-            val userId = 1L
-            val userPoint = 25000L
-            val user = User(userId, "김철수", userPoint)
-
-            beforeTest {
-                every { userService.readSingleUser(userId) } returns user
-            }
-
-            Then("응답 구조가 올바르다") {
-                val result = mockMvc.perform(
-                    get("/api/v1/point").header("userId", userId)
-                )
-                    .andExpect(status().isOk)
-                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                    .andExpect(jsonPath("$.userId").exists())
-                    .andExpect(jsonPath("$.point").exists())
-                    .andReturn()
-
-                val responseContent = result.response.contentAsString
-                val response = objectMapper.readValue(responseContent, Map::class.java)
-                
-                response["userId"].toString().toLong() shouldBe userId
-                response["point"].toString().toLong() shouldBe userPoint
-            }
-        }
-    }
-}) 
+}

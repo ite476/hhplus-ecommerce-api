@@ -1,9 +1,16 @@
 package kr.hhplus.be.server.controller.v1.product
 
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
+import kr.hhplus.be.server.controller.dto.request.PagingOptionsRequestParam
 import kr.hhplus.be.server.controller.v1.product.response.GetProductsPopularResponse
 import kr.hhplus.be.server.controller.v1.product.response.GetProductsResponse
-import kr.hhplus.be.server.service.product.service.ProductService
+import kr.hhplus.be.server.service.pagination.PagedList
+import kr.hhplus.be.server.service.product.entity.Product
+import kr.hhplus.be.server.service.product.entity.ProductSaleSummary
+import kr.hhplus.be.server.service.product.usecase.FindPagedPopularProductsUsecase
+import kr.hhplus.be.server.service.product.usecase.FindPagedProductsUsecase
+import org.springdoc.core.annotations.ParameterObject
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -13,39 +20,28 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/products")
 @Tag(name = "Product API", description = "상품 API")
 class ProductController (
-    val productService: ProductService
+    val findAllProductsUsecase: FindPagedProductsUsecase,
+    val findAllPopularProductsUsecase: FindPagedPopularProductsUsecase
     ) : ProductApiSepc {
 
     @GetMapping("")
-    override fun getProducts(): ResponseEntity<List<GetProductsResponse>> {
-        val products = productService.readProducts();
+    override fun getProducts(
+        @ParameterObject @Valid pagingOptions: PagingOptionsRequestParam
+    ): ResponseEntity<GetProductsResponse> {
+        val products: PagedList<Product> = findAllProductsUsecase.findPagedProducts(pagingOptions.toPagingOptions());
 
-        val productsResposne = products.map {
-            GetProductsResponse(
-                it.id,
-                it.name,
-                it.price,
-                it.stock,
-            )
-        }
+        val productsResposne: GetProductsResponse = GetProductsResponse.fromEntity(products)
 
         return ResponseEntity.ok(productsResposne)
     }
 
     @GetMapping("/popular")
-    override fun getPopularProducts(): ResponseEntity<List<GetProductsPopularResponse>> {
-        val popularProducts = productService.readPopularProducts()
+    override fun getPopularProducts(
+        @ParameterObject @Valid pagingOptions: PagingOptionsRequestParam
+    ): ResponseEntity<GetProductsPopularResponse> {
+        val popularProducts: PagedList<ProductSaleSummary> = findAllPopularProductsUsecase.findPagedPopularProducts(pagingOptions.toPagingOptions())
 
-        val popularResponse = popularProducts.map {
-            GetProductsPopularResponse(
-                it.product.id,
-                it.product.name,
-                it.product.price,
-                it.product.stock,
-                it.rank,
-                it.soldCount,
-            )
-        }
+        val popularResponse: GetProductsPopularResponse = GetProductsPopularResponse.fromEntity(popularProducts)
 
         return  ResponseEntity.ok(popularResponse)
     }

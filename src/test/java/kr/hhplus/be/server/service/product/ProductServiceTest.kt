@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.verify
 import kr.hhplus.be.server.service.ServiceTestBase
+import kr.hhplus.be.server.service.pagination.PagedList
 import kr.hhplus.be.server.service.product.entity.Product
 import kr.hhplus.be.server.service.product.entity.ProductSaleSummary
 import kr.hhplus.be.server.service.product.exception.LackOfProductStockException
@@ -32,7 +33,7 @@ class ProductServiceTest : ServiceTestBase() {
     }
 
     @Nested
-    @DisplayName("readProducts 메서드는")
+    @DisplayName("findAllProducts 메서드는")
     inner class ReadProductsTest {
 
         @Test
@@ -43,33 +44,44 @@ class ProductServiceTest : ServiceTestBase() {
                 Product(1L, "아메리카노", 4500L, 100, fixedTime),
                 Product(2L, "라떼", 5000L, 50, fixedTime)
             )
-            every { productPort.findAllProducts() } returns expectedProducts
+            every { productPort.findPagedProducts(any()) } returns PagedList(
+                items = expectedProducts,
+                page = pagingOptions.page,
+                size = pagingOptions.size,
+                totalCount = 2
+            )
 
             // when
-            val result = productService.readProducts()
+            val result = productService.findPagedProducts(pagingOptions).items
 
             // then
             result shouldBe expectedProducts
-            verify { productPort.findAllProducts() }
+            verify { productPort.findPagedProducts(any()) }
         }
 
         @Test
         @DisplayName("상품이 없을 때 빈 리스트를 반환한다")
         fun returnsEmptyListWhenNoProducts() {
             // given
-            every { productPort.findAllProducts() } returns emptyList()
+
+            every { productPort.findPagedProducts(any()) } returns PagedList(
+                items = emptyList(),
+                page = pagingOptions.page,
+                size = pagingOptions.size,
+                totalCount = 0
+            )
 
             // when
-            val result = productService.readProducts()
+            val result = productService.findPagedProducts(pagingOptions).items
 
             // then
             result shouldBe emptyList()
-            verify { productPort.findAllProducts() }
+            verify { productPort.findPagedProducts(any()) }
         }
     }
 
     @Nested
-    @DisplayName("readSingleProduct 메서드는")
+    @DisplayName("findProductById 메서드는")
     inner class ReadSingleProductTest {
 
         @Test
@@ -83,7 +95,7 @@ class ProductServiceTest : ServiceTestBase() {
             every { productPort.findProductById(productId) } returns expectedProduct
 
             // when
-            val result = productService.readSingleProduct(productId)
+            val result = productService.findProductById(productId)
 
             // then
             result shouldBe expectedProduct
@@ -92,7 +104,7 @@ class ProductServiceTest : ServiceTestBase() {
     }
 
     @Nested
-    @DisplayName("readPopularProducts 메서드는")
+    @DisplayName("findAllPopularProducts 메서드는")
     inner class ReadPopularProductsTest {
 
         @Test
@@ -101,32 +113,37 @@ class ProductServiceTest : ServiceTestBase() {
             // given
             val expectedProducts = listOf(
                 ProductSaleSummary(
-                    Product(1L, "아메리카노", 4500L, 100, fixedTime),
-                    1, 1200, fixedTime.minusDays(3), fixedTime
+                    product = Product(id = 1L, name = "아메리카노", price = 4500L, stock = 100, createdAt = fixedTime),
+                    rank = 1, soldCount = 1200, from = fixedTime.minusDays(3), until = fixedTime
                 ),
                 ProductSaleSummary(
-                    Product(2L, "라떼", 5000L, 50, fixedTime),
-                    2, 800, fixedTime.minusDays(3), fixedTime
+                    product = Product(id = 2L, name = "라떼", price = 5000L, stock = 50, createdAt = fixedTime),
+                    rank = 2, soldCount = 800, from = fixedTime.minusDays(3), until = fixedTime
                 )
             )
             every { 
-                productPort.findAllPopularProducts(
-                    fixedTime, 
-                    Duration.ofDays(3), 
-                    5
+                productPort.findPagedPopularProducts(
+                    whenSearch = fixedTime,
+                    searchPeriod = Duration.ofDays(3),
+                    pagingOptions = pagingOptions
                 ) 
-            } returns expectedProducts
+            } returns PagedList(
+                items = expectedProducts,
+                page = pagingOptions.page,
+                size = pagingOptions.size,
+                totalCount = 2
+            )
 
             // when
-            val result = productService.readPopularProducts()
+            val result = productService.findPagedPopularProducts(pagingOptions).items
 
             // then
             result shouldBe expectedProducts
             verify { 
-                productPort.findAllPopularProducts(
-                    fixedTime, 
-                    Duration.ofDays(3), 
-                    5
+                productPort.findPagedPopularProducts(
+                    whenSearch = fixedTime,
+                    searchPeriod = Duration.ofDays(3),
+                    pagingOptions = any()
                 ) 
             }
         }
@@ -141,7 +158,7 @@ class ProductServiceTest : ServiceTestBase() {
         fun increasesProductStock() {
             // given
             val productId = 1L
-            val quantity = 50
+            val quantity = 50L
             val product = Product(productId, "아메리카노", 4500L, 100, fixedTime)
 
             every { productPort.existsProduct((productId)) } returns true
@@ -167,7 +184,7 @@ class ProductServiceTest : ServiceTestBase() {
         fun reducesProductStock() {
             // given
             val productId = 1L
-            val quantity = 30
+            val quantity = 30L
             val product = Product(productId, "아메리카노", 4500L, 100, fixedTime)
 
             every { productPort.existsProduct((productId)) } returns true
@@ -188,7 +205,7 @@ class ProductServiceTest : ServiceTestBase() {
         fun throwsExceptionWhenInsufficientStock() {
             // given
             val productId = 1L
-            val quantity = 150 // 재고(100)보다 많음
+            val quantity = 150L // 재고(100)보다 많음
             val product = Product(productId, "아메리카노", 4500L, 100, fixedTime)
 
             every { productPort.existsProduct((productId)) } returns true
@@ -235,14 +252,14 @@ class ProductServiceTest : ServiceTestBase() {
         }
 
         @Test
-        @DisplayName("reduceStock은 재고가 0이 되면 예외를 던진다")
+        @DisplayName("reduceStock은 재고가 0 미만이 되면 예외를 던진다")
         fun reduceStockThrowsExceptionWhenStockBecomesZero() {
             // given
             val product = Product(1L, "아메리카노", 4500L, 100, fixedTime)
 
             // when & then
             shouldThrow<LackOfProductStockException> {
-                product.reduceStock(100, fixedTime) // 재고가 정확히 0이 됨
+                product.reduceStock(101, fixedTime) // 재고가 정확히 0이 됨
             }
         }
 

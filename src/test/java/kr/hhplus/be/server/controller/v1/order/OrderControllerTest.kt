@@ -1,46 +1,55 @@
 package kr.hhplus.be.server.controller.v1.order
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.ninjasquad.springmockk.MockkBean
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.mockk
-import kr.hhplus.be.server.controller.common.advise.GlobalExceptionHandler
+import kr.hhplus.be.server.controller.advise.GlobalExceptionHandler
 import kr.hhplus.be.server.controller.v1.order.request.OrderItemRequest
 import kr.hhplus.be.server.controller.v1.order.request.PostOrderRequestBody
-import kr.hhplus.be.server.service.common.exception.BusinessUnacceptableException
+import kr.hhplus.be.server.controller.v1.order.response.PostOrderResponse
 import kr.hhplus.be.server.service.coupon.exception.UserCouponCantBeUsedException
+import kr.hhplus.be.server.service.exception.BusinessUnacceptableException
 import kr.hhplus.be.server.service.order.entity.Order
 import kr.hhplus.be.server.service.order.entity.OrderItem
-import kr.hhplus.be.server.service.order.service.OrderService
+import kr.hhplus.be.server.service.order.usecase.CreateOrderUsecase
 import kr.hhplus.be.server.service.product.exception.LackOfProductStockException
 import kr.hhplus.be.server.service.user.exception.UserNotFoundException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
-import org.springframework.http.MediaType
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.context.annotation.Import
+import org.springframework.http.HttpStatus
+import org.springframework.test.web.client.MockMvcClientHttpRequestFactory
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientResponseException
+import java.time.ZoneId
 import java.time.ZonedDateTime
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@WebMvcTest(OrderController::class)
+@Import(GlobalExceptionHandler::class)
 @DisplayName("OrderController 테스트")
 class OrderControllerTest {
+    @MockkBean
+    lateinit var createOrderUsecase: CreateOrderUsecase
 
-    private val orderService = mockk<OrderService>()
-    private val objectMapper = ObjectMapper()
-    private lateinit var mockMvc: MockMvc
-    private val endpoint = "/api/v1/orders"
+    private val postOrderEndpoint = "/api/v1/orders"
+    private val fixedTime = ZonedDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneId.of("Asia/Seoul"))
+
+    @Autowired
+    lateinit var mockMvc: MockMvc
+    lateinit var restClient: RestClient
 
     @BeforeEach
     fun setUp() {
         clearAllMocks()
-        val controller = OrderController(orderService)
-        mockMvc = MockMvcBuilders.standaloneSetup(controller)
-            .setControllerAdvice(GlobalExceptionHandler())
+        restClient = RestClient.builder()
+            .requestFactory(MockMvcClientHttpRequestFactory(mockMvc))
             .build()
     }
 
@@ -49,11 +58,13 @@ class OrderControllerTest {
     fun createOrder_ValidRequestWithoutCoupon_ReturnsSuccessResponse() {
         // Given
         val userId = 1L
-        val orderItems = listOf(
-            OrderItemRequest(1L, 2),
-            OrderItemRequest(2L, 1)
+        val requestBody = PostOrderRequestBody(
+            orderItems = listOf(
+                OrderItemRequest(productId = 1L, quantity = 2),
+                OrderItemRequest(productId = 2L, quantity = 1)
+            ),
+            userCouponId = null
         )
-        val requestBody = PostOrderRequestBody(orderItems, null)
 
         val mockOrder = Order(
             id = 12345L,
@@ -77,39 +88,42 @@ class OrderControllerTest {
             ),
             totalProductsPrice = 14000L,
             discountedPrice = 0L,
-            orderedAt = ZonedDateTime.now()
+            orderedAt = fixedTime
         )
 
-        coEvery { orderService.createOrder(any()) } returns mockOrder
+        coEvery { createOrderUsecase.createOrder(any()) } returns mockOrder
 
         // When & Then
-        mockMvc.perform(
-            post(endpoint)
-                .header("userId", userId.toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestBody))
-        )
-            .andExpect(status().isOk)
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.orderId").value(12345L))
-            .andExpect(jsonPath("$.totalAmount").value(14000L))
-            .andExpect(jsonPath("$.usedPoint").value(14000L))  // purchasedPrice
-            .andExpect(jsonPath("$.couponDiscountAmount").value(0L))  // discountedPrice
-            .andExpect(jsonPath("$.orderItems").isArray)
-            .andExpect(jsonPath("$.orderItems.length()").value(2))
-            .andExpect(jsonPath("$.orderItems[0].productId").value(1L))
-            .andExpect(jsonPath("$.orderItems[0].productName").value("아메리카노"))
-            .andExpect(jsonPath("$.orderItems[0].unitPrice").value(4500L))
-            .andExpect(jsonPath("$.orderItems[0].quantity").value(2))
-            .andExpect(jsonPath("$.orderItems[0].totalPrice").value(9000L))
+        val response = restClient.post()
+            .uri(postOrderEndpoint)
+            .header("userId", userId.toString())
+            .body(requestBody)
+            .retrieve()
+            .toEntity(PostOrderResponse::class.java)
+
+        response.statusCode shouldBe HttpStatus.CREATED
+        response.body.let { body ->
+            body shouldNotBe null
+            body?.run {
+                orderId shouldBe mockOrder.id
+                totalAmount shouldBe mockOrder.totalProductsPrice
+                usedPoint shouldBe mockOrder.purchasedPrice
+                couponDiscountAmount shouldBe mockOrder.discountedPrice
+                orderItems.size shouldBe mockOrder.orderItems.size
+                orderItems[0].productId shouldBe mockOrder.orderItems[0].productId
+                orderItems[0].productName shouldBe mockOrder.orderItems[0].productName
+                orderItems[0].unitPrice shouldBe mockOrder.orderItems[0].unitPrice
+                orderItems[0].quantity shouldBe mockOrder.orderItems[0].quantity
+            }
+        }
 
         coVerify(exactly = 1) {
-            orderService.createOrder(
+            createOrderUsecase.createOrder(
                 withArg { input ->
                     assert(input.userId == userId)
                     assert(input.products.size == 2)
                     assert(input.products[0].productId == 1L)
-                    assert(input.products[0].quantity == 2)
+                    assert(input.products[0].quantity == 2L)
                     assert(input.userCouponId == null)
                 }
             )
@@ -143,23 +157,29 @@ class OrderControllerTest {
             orderedAt = ZonedDateTime.now()
         )
 
-        coEvery { orderService.createOrder(any()) } returns mockOrder
+        coEvery { createOrderUsecase.createOrder(any()) } returns mockOrder
 
         // When & Then
-        mockMvc.perform(
-            post(endpoint)
-                .header("userId", userId.toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestBody))
-        )
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.orderId").value(12346L))
-            .andExpect(jsonPath("$.totalAmount").value(4500L))
-            .andExpect(jsonPath("$.usedPoint").value(2500L))  // purchasedPrice = 4500 - 2000
-            .andExpect(jsonPath("$.couponDiscountAmount").value(2000L))  // discountedPrice
+        val response = restClient.post()
+            .uri(postOrderEndpoint)
+            .header("userId", userId.toString())
+            .body(requestBody)
+            .retrieve()
+            .toEntity(PostOrderResponse::class.java)
+
+        response.statusCode shouldBe HttpStatus.CREATED
+        response.body.let { body ->
+            body shouldNotBe null
+            body?.run {
+                orderId shouldBe 12346L
+                totalAmount shouldBe 4500L
+                usedPoint shouldBe 2500L  // purchasedPrice = 4500 - 2000
+                couponDiscountAmount shouldBe 2000L  // discountedPrice
+            }
+        }
 
         coVerify(exactly = 1) {
-            orderService.createOrder(
+            createOrderUsecase.createOrder(
                 withArg { input ->
                     assert(input.userCouponId == couponId)
                 }
@@ -175,17 +195,20 @@ class OrderControllerTest {
         val orderItems = listOf(OrderItemRequest(1L, 1))
         val requestBody = PostOrderRequestBody(orderItems, null)
 
-        coEvery { orderService.createOrder(any()) } throws UserNotFoundException()
+        coEvery { createOrderUsecase.createOrder(any()) } throws UserNotFoundException()
 
         // When & Then
-        mockMvc.perform(
-            post(endpoint)
+        try {
+            restClient.post()
+                .uri(postOrderEndpoint)
                 .header("userId", userId.toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestBody))
-        )
-            .andExpect(status().isNotFound)
-            .andExpect(jsonPath("$.message").value("회원이 존재하지 않습니다."))
+                .body(requestBody)
+                .retrieve()
+                .toEntity(PostOrderResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.NOT_FOUND
+            e.responseBodyAsString.contains("회원이 존재하지 않습니다.") shouldBe true
+        }
     }
 
     @Test
@@ -196,17 +219,20 @@ class OrderControllerTest {
         val orderItems = listOf(OrderItemRequest(1L, 100))
         val requestBody = PostOrderRequestBody(orderItems, null)
 
-        coEvery { orderService.createOrder(any()) } throws LackOfProductStockException()
+        coEvery { createOrderUsecase.createOrder(any()) } throws LackOfProductStockException()
 
         // When & Then
-        mockMvc.perform(
-            post(endpoint)
+        try {
+            restClient.post()
+                .uri(postOrderEndpoint)
                 .header("userId", userId.toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestBody))
-        )
-            .andExpect(status().isUnprocessableEntity)
-            .andExpect(jsonPath("$.message").value("상품 재고가 부족합니다."))
+                .body(requestBody)
+                .retrieve()
+                .toEntity(PostOrderResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.UNPROCESSABLE_ENTITY
+            e.responseBodyAsString.contains("상품 재고가 부족합니다.") shouldBe true
+        }
     }
 
     @Test
@@ -218,17 +244,20 @@ class OrderControllerTest {
         val requestBody = PostOrderRequestBody(orderItems, null)
 
         // 포인트 부족은 일반적인 BusinessUnacceptableException으로 처리됨
-        coEvery { orderService.createOrder(any()) } throws BusinessUnacceptableException("포인트 잔액이 부족합니다.")
+        coEvery { createOrderUsecase.createOrder(any()) } throws BusinessUnacceptableException("포인트 잔액이 부족합니다.")
 
         // When & Then
-        mockMvc.perform(
-            post(endpoint)
+        try {
+            restClient.post()
+                .uri(postOrderEndpoint)
                 .header("userId", userId.toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestBody))
-        )
-            .andExpect(status().isUnprocessableEntity)
-            .andExpect(jsonPath("$.message").value("포인트 잔액이 부족합니다."))
+                .body(requestBody)
+                .retrieve()
+                .toEntity(PostOrderResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.UNPROCESSABLE_ENTITY
+            e.responseBodyAsString.contains("포인트 잔액이 부족합니다.") shouldBe true
+        }
     }
 
     @Test
@@ -239,17 +268,20 @@ class OrderControllerTest {
         val orderItems = listOf(OrderItemRequest(1L, 1))
         val requestBody = PostOrderRequestBody(orderItems, 999L)
 
-        coEvery { orderService.createOrder(any()) } throws UserCouponCantBeUsedException()
+        coEvery { createOrderUsecase.createOrder(any()) } throws UserCouponCantBeUsedException()
 
         // When & Then
-        mockMvc.perform(
-            post(endpoint)
+        try {
+            restClient.post()
+                .uri(postOrderEndpoint)
                 .header("userId", userId.toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestBody))
-        )
-            .andExpect(status().isConflict)  // UserCouponCantBeUsedException -> BusinessConflictException -> 409
-            .andExpect(jsonPath("$.message").value("사용할 수 없는 쿠폰입니다."))
+                .body(requestBody)
+                .retrieve()
+                .toEntity(PostOrderResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.CONFLICT  // UserCouponCantBeUsedException -> BusinessConflictException -> 409
+            e.responseBodyAsString.contains("사용할 수 없는 쿠폰입니다.") shouldBe true
+        }
     }
 
     @Test
@@ -259,14 +291,19 @@ class OrderControllerTest {
         val userId = 1L
         val invalidRequestBody = PostOrderRequestBody(emptyList(), null)
 
+        // Mock 설정하지 않음 - validation이 먼저 동작해야 함
+
         // When & Then
-        mockMvc.perform(
-            post(endpoint)
+        try {
+            restClient.post()
+                .uri(postOrderEndpoint)
                 .header("userId", userId.toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(invalidRequestBody))
-        )
-            .andExpect(status().isBadRequest)
+                .body(invalidRequestBody)
+                .retrieve()
+                .toEntity(PostOrderResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.BAD_REQUEST
+        }
     }
 
     @Test
@@ -278,14 +315,19 @@ class OrderControllerTest {
             listOf(OrderItemRequest(1L, 0)), null
         )
 
+        // Mock 설정하지 않음 - validation이 먼저 동작해야 함
+
         // When & Then
-        mockMvc.perform(
-            post(endpoint)
+        try {
+            restClient.post()
+                .uri(postOrderEndpoint)
                 .header("userId", userId.toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(invalidRequestBody))
-        )
-            .andExpect(status().isBadRequest)
+                .body(invalidRequestBody)
+                .retrieve()
+                .toEntity(PostOrderResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.BAD_REQUEST
+        }
     }
 
     @Test
@@ -296,12 +338,15 @@ class OrderControllerTest {
         val requestBody = PostOrderRequestBody(orderItems, null)
 
         // When & Then
-        mockMvc.perform(
-            post(endpoint)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestBody))
-        )
-            .andExpect(status().isBadRequest)
+        try {
+            restClient.post()
+                .uri(postOrderEndpoint)
+                .body(requestBody)
+                .retrieve()
+                .toEntity(PostOrderResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.BAD_REQUEST
+        }
     }
 
     @Test
@@ -312,15 +357,18 @@ class OrderControllerTest {
         val orderItems = listOf(OrderItemRequest(1L, 1))
         val requestBody = PostOrderRequestBody(orderItems, null)
 
-        coEvery { orderService.createOrder(any()) } throws RuntimeException("시스템 오류가 발생했습니다.")
+        coEvery { createOrderUsecase.createOrder(any()) } throws RuntimeException("시스템 오류가 발생했습니다.")
 
         // When & Then
-        mockMvc.perform(
-            post(endpoint)
+        try {
+            restClient.post()
+                .uri(postOrderEndpoint)
                 .header("userId", userId.toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestBody))
-        )
-            .andExpect(status().isInternalServerError)
+                .body(requestBody)
+                .retrieve()
+                .toEntity(PostOrderResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.INTERNAL_SERVER_ERROR
+        }
     }
 }

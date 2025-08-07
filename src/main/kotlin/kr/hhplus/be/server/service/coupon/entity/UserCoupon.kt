@@ -36,7 +36,7 @@ class UserCoupon (
         }
 
         usedAt = now
-        updateStatus(now)
+        status = UserCouponStatus.USED
     }
 
     fun undoUsage(now: ZonedDateTime){
@@ -46,6 +46,10 @@ class UserCoupon (
 
         usedAt = null
         updateStatus(now)
+    }
+
+    fun isUsable(): Boolean {
+        return status == UserCouponStatus.ACTIVE
     }
 }
 

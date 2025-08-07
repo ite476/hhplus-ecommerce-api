@@ -3,7 +3,7 @@ package kr.hhplus.be.server.service.coupon.entity
 import java.time.ZonedDateTime
 
 data class Coupon (
-    val id: Long,
+    val id: Long? = null,
     val name: String,
     val discount: Long,
     val totalQuantity: Int,

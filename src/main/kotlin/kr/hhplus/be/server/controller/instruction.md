@@ -35,15 +35,26 @@ class User_Controller {  // 스네이크 케이스
 
 ```kotlin
 // ✅ GOOD - 개선된 방식
-@RequestMapping("/api/v1/user")
-@GetMapping("/{userId}")          // 단일 조회
-@GetMapping("/list")              // 목록 조회  
-@PostMapping                      // 생성
+@RequestMapping("/api/v1")
+@GetMapping("/users/{userId}")     // 단일 조회
+@GetMapping("/users")              // 목록 조회  
+@PostMapping("/users")             // 생성
 
 // 기존 방식도 함께 언급
 @RequestMapping("/api/v1/users")  // 복수형도 일관성 있게 사용한다면 OK
 @GetMapping("/{userId}")          // 파라미터는 명확하게
 ```
+
+> resource에 대한 표현은 다수의 resource가 존재할 수 있는 경우 항상 복수형 표기를 지향합니다. (예: users, orders)
+> - 이 경우, 복수 컬렉션을 저장하고 있는 저장소에 대한 요청으로 표현한 것으로 이해합니다.
+>  
+> 서비스 맥락 상 단일 리소스만 존재할 수 있는 경우, 단수형 표기를 지향합니다. (ex. mypage)
+>
+> `예시`
+> - 마이페이지 / 신용카드를 추가 `POST /mypage/creditcards`
+>   - 복수 컬렉션에 리소스를 추가하는 경우 
+> - 마이페이지 / 주소를 변경 `PATCH /mypage/address`
+>   - `마이페이지` 도메인의 하위 속성을 변경하는 경우
 
 ## HTTP 상태코드
 

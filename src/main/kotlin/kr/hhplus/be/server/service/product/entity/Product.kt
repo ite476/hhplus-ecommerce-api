@@ -1,13 +1,14 @@
 package kr.hhplus.be.server.service.product.entity
 
 import kr.hhplus.be.server.service.product.exception.LackOfProductStockException
+import kr.hhplus.be.server.service.product.exception.ProductNotFoundException
 import java.time.ZonedDateTime
 
 class Product(
-    val id: Long,
+    val id: Long? = null,
     name: String,
     price: Long,
-    stock: Int,
+    stock: Long,
     val createdAt: ZonedDateTime
 ) {
     var name: String = name
@@ -16,17 +17,25 @@ class Product(
     var price: Long = price
         private set
 
-    var stock: Int = stock
+    var stock: Long = stock
         private set
 
-    fun addStock(quantity: Int, now: ZonedDateTime)
+    fun addStock(quantity: Long, now: ZonedDateTime)
     {
         stock += quantity
     }
 
-    fun reduceStock(quantity: Int, now: ZonedDateTime) {
-        if (stock - quantity <= 0) throw LackOfProductStockException()
+    fun reduceStock(quantity: Long, now: ZonedDateTime) {
+        require (stock >= quantity) {
+            throw LackOfProductStockException()
+        }
 
         stock -= quantity
+    }
+
+    fun requiresId() : Long {
+        return requireNotNull(id) {
+            throw ProductNotFoundException()
+        }
     }
 }

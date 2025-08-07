@@ -47,13 +47,18 @@ dependencies {
 	// Spring
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+	implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
+	kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
 	implementation("org.springframework.boot:spring-boot-starter-web")
-
-	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
 
 	// DB
 	runtimeOnly("com.mysql:mysql-connector-j")
+	implementation("p6spy:p6spy:3.9.1")
 
+	// Validation
+	implementation("org.springframework.boot:spring-boot-starter-validation")
+	
 	// Test
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-webflux") // WebTestClient 지원
@@ -75,4 +80,13 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 	systemProperty("user.timezone", "UTC")
+}
+
+// QueryDSL Q클래스 생성 설정
+kotlin {
+	sourceSets {
+		main {
+			kotlin.srcDirs("$buildDir/generated/source/kapt/main")
+		}
+	}
 }

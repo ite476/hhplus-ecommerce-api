@@ -1,11 +1,17 @@
 package kr.hhplus.be.server.service.coupon.service
 
-import kr.hhplus.be.server.service.common.transaction.CompensationScope
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
 import kr.hhplus.be.server.service.coupon.exception.CouponNotFoundException
 import kr.hhplus.be.server.service.coupon.exception.UserCouponNotFoundException
 import kr.hhplus.be.server.service.coupon.port.CouponPort
-import kr.hhplus.be.server.service.user.service.UserService
+import kr.hhplus.be.server.service.coupon.usecase.FindPagedUserCouponsUsecase
+import kr.hhplus.be.server.service.coupon.usecase.FindUserCouponByIdUsecase
+import kr.hhplus.be.server.service.coupon.usecase.IssueCouponUsecase
+import kr.hhplus.be.server.service.coupon.usecase.UseUserCouponUsecase
+import kr.hhplus.be.server.service.pagination.PagedList
+import kr.hhplus.be.server.service.pagination.PagingOptions
+import kr.hhplus.be.server.service.transaction.CompensationScope
+import kr.hhplus.be.server.service.user.usecase.RequiresUserIdExistsUsecase
 import kr.hhplus.be.server.util.KoreanTimeProvider
 import org.springframework.stereotype.Service
 import java.time.ZonedDateTime
@@ -13,10 +19,13 @@ import java.time.ZonedDateTime
 @Service
 class CouponService (
     val couponPort: CouponPort,
-    val userService: UserService,
+    val requireUserIdExistsUsecase: RequiresUserIdExistsUsecase,
     val timeProvider: KoreanTimeProvider
-    ) {
-    fun readSingleUserCoupon(
+    ) : FindUserCouponByIdUsecase,
+    UseUserCouponUsecase,
+    FindPagedUserCouponsUsecase,
+    IssueCouponUsecase {
+    override fun findUserCouponById(
         userId: Long,
         userCouponId: Long
     ) : UserCoupon {
@@ -25,7 +34,7 @@ class CouponService (
         return couponPort.findUserCouponById(userId, userCouponId)
     }
 
-    fun useUserCoupon(userCoupon: UserCoupon, now: ZonedDateTime) {
+    override fun useUserCoupon(userCoupon: UserCoupon, now: ZonedDateTime) {
         requireUserCouponExists(userCoupon.id)
 
         userCoupon.use(now)
@@ -33,7 +42,7 @@ class CouponService (
         couponPort.saveUserCoupon(userCoupon)
     }
 
-    fun rollbackUserCouponUsage(userCoupon: UserCoupon, now: ZonedDateTime) {
+    override fun rollbackUserCouponUsage(userCoupon: UserCoupon, now: ZonedDateTime) {
         requireUserCouponExists(userCoupon.id)
 
         userCoupon.undoUsage(now)
@@ -41,53 +50,43 @@ class CouponService (
         couponPort.saveUserCoupon(userCoupon)
     }
 
+    override fun findPagedUserCoupons(userId: Long, pagingOptions: PagingOptions) : PagedList<UserCoupon> {
+        requireUserIdExistsUsecase.requireUserIdExists(userId)
 
-    fun readUserCoupons(userId: Long) : List<UserCoupon> {
-        userService.requireUserExists(userId)
-
-        val userCoupons = couponPort.findAllUserCoupons(userId)
+        val userCoupons: PagedList<UserCoupon> = couponPort.findPagedUserCoupons(userId, pagingOptions)
 
         return userCoupons
     }
 
-    suspend fun issueCoupon(userId: Long, couponId: Long) : UserCoupon {
-        userService.requireUserExists(userId)
+    override suspend fun issueCoupon(userId: Long, couponId: Long) : UserCoupon {
+        requireUserIdExistsUsecase.requireUserIdExists(userId)
         requireCouponExists(couponId)
 
         val now = timeProvider.now()
-        val scope = CompensationScope()
 
-        try{
-            val couponIssueResult = scope.execute {
-                couponPort.issueCoupon(couponId)
+        val issuedUserCoupon: UserCoupon = CompensationScope.runTransaction {
+            execute {
+                couponPort.issueCoupon(userId, couponId, now)
+            }.compensateBy { coupon ->
+                couponPort.revokeCoupon(issuedUserCoupon = coupon, now = now)
             }
-
-            val issuedUserCoupon = couponIssueResult.result
-
-            couponIssueResult.compensate {
-                couponPort.revokeCoupon(issuedUserCoupon)
-            }
-
-            return issuedUserCoupon
         }
-        catch (ex: Exception){
-            scope.rollbackAll()
 
-            throw ex
-        }
+        return issuedUserCoupon
     }
 
-    fun existsUserCoupon(userCouponId: Long) : Boolean {
+
+    private fun existsUserCoupon(userCouponId: Long) : Boolean {
         return couponPort.existsUserCoupon(userCouponId)
     }
 
-    fun requireUserCouponExists(userCouponId: Long) {
+    private fun requireUserCouponExists(userCouponId: Long) {
         if (!existsUserCoupon(userCouponId)){
             throw UserCouponNotFoundException()
         }
     }
 
-    fun requireCouponExists(couponId: Long){
+    private fun requireCouponExists(couponId: Long){
         if (!existsCoupon(couponId)){
             throw CouponNotFoundException()
         }

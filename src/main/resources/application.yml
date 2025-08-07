@@ -14,18 +14,42 @@ spring:
   jpa:
     open-in-view: false
     generate-ddl: false
-    show-sql: false
+    show-sql: true
     hibernate:
       ddl-auto: none
     properties:
       hibernate.timezone.default_storage: NORMALIZE_UTC
       hibernate.jdbc.time_zone: UTC
+      hibernate.format_sql: true
+      hibernate.use_sql_comments: true
+      hibernate.show_sql: true
+
+# 성능 분석용 로깅 설정
+logging:
+  level:
+    # QueryDSL 쿼리 생성 로그
+    com.querydsl.sql: DEBUG
+    com.querydsl.jpa: DEBUG
+    # p6spy SQL 로깅
+    p6spy: INFO
+    # Hibernate SQL 로깅
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.orm.jdbc.bind: TRACE
+    # 커넥션 풀 모니터링
+    com.zaxxer.hikari: DEBUG
+    # 트랜잭션 로깅
+    org.springframework.transaction: DEBUG
 springdoc:
   api-docs:
     enabled: true
     path: /v3/api-docs.yaml
   swagger-ui:
     enabled: true
+decorator:
+  datasource:
+    p6spy:
+      enable-logging: true
 
 ---
 spring.config.activate.on-profile: local, test

@@ -1,9 +1,11 @@
 package kr.hhplus.be.server.service.product.service
 
+import kr.hhplus.be.server.service.pagination.PagedList
+import kr.hhplus.be.server.service.pagination.PagingOptions
 import kr.hhplus.be.server.service.product.entity.Product
 import kr.hhplus.be.server.service.product.entity.ProductSaleSummary
-import kr.hhplus.be.server.service.product.exception.ProductNotFoundException
 import kr.hhplus.be.server.service.product.port.ProductPort
+import kr.hhplus.be.server.service.product.usecase.*
 import kr.hhplus.be.server.util.KoreanTimeProvider
 import org.springframework.stereotype.Service
 import java.time.Duration
@@ -13,63 +15,55 @@ import java.time.ZonedDateTime
 class ProductService(
     val productPort: ProductPort,
     val timeProvider: KoreanTimeProvider
-) {
-    fun readProducts() : List<Product> {
-        val products = productPort.findAllProducts()
+) : FindProductByIdUsecase,
+    FindPagedProductsUsecase,
+    FindPagedPopularProductsUsecase,
+    AddProductStockUsecase,
+    ReduceProductStockUsecase {
+    override fun findPagedProducts(pagingOptions: PagingOptions) : PagedList<Product> {
+        val products: PagedList<Product> = productPort.findPagedProducts(pagingOptions).let { paged ->
+            paged.copy(
+                items = paged.items.onEach { it.requiresId() }
+            )
+        }
 
         return products
     }
 
-    fun readSingleProduct(
+    override fun findProductById(
         productId: Long
     ) : Product {
-        requireProductExists(productId)
-
-        val product = productPort.findProductById(productId)
+        val product: Product = productPort.findProductById(productId)
+        product.requiresId()
 
         return product
     }
 
-    fun requireProductExists(productId: Long) {
-        if (!existsProduct(productId)){
-            throw ProductNotFoundException()
-        }
-    }
+    override fun findPagedPopularProducts(pagingOptions: PagingOptions): PagedList<ProductSaleSummary> {
+        val now: ZonedDateTime = timeProvider.now();
+        val searchPeriod: Duration =  Duration.ofDays(/* days = */ 3)
 
-    fun existsProduct(productId: Long) : Boolean {
-        return productPort.existsProduct(productId)
-    }
-
-    fun readPopularProducts() : List<ProductSaleSummary> {
-        val now = timeProvider.now();
-        val searchPeriod =  Duration.ofDays(3)
-        val fetchSize = 5
-
-        val popularProducts = productPort.findAllPopularProducts(
-            now,
-            searchPeriod,
-            fetchSize
+        val popularProducts: PagedList<ProductSaleSummary> = productPort.findPagedPopularProducts(
+            whenSearch = now,
+            searchPeriod = searchPeriod,
+            pagingOptions = pagingOptions
         )
 
         return popularProducts
     }
 
-    fun addProductStock(productId: Long, quantity: Int, now: ZonedDateTime) {
-        requireProductExists(productId)
+    override fun addProductStock(productId: Long, quantity: Long, now: ZonedDateTime) {
+        val product: Product = findProductById(productId)
 
-        val product = productPort.findProductById(productId)
-
-        product.addStock(quantity, now)
+        product.addStock(quantity = quantity, now = now)
 
         productPort.saveProduct(product)
     }
 
-    fun reduceProductStock(productId: Long, quantity: Int, now: ZonedDateTime) {
-        requireProductExists(productId)
+    override fun reduceProductStock(productId: Long, quantity: Long, now: ZonedDateTime) {
+        val product: Product = findProductById(productId)
 
-        val product = productPort.findProductById(productId)
-
-        product.reduceStock(quantity, now)
+        product.reduceStock(quantity = quantity, now = now)
 
         productPort.saveProduct(product)
     }
