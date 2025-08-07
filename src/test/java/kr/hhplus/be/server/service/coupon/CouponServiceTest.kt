@@ -12,6 +12,8 @@ import kr.hhplus.be.server.service.coupon.exception.UserCouponCantBeUsedExceptio
 import kr.hhplus.be.server.service.coupon.exception.UserCouponIsNotUsedButTriedToBeUnusedException
 import kr.hhplus.be.server.service.coupon.port.CouponPort
 import kr.hhplus.be.server.service.coupon.service.CouponService
+import kr.hhplus.be.server.service.pagination.PagedList
+import kr.hhplus.be.server.service.pagination.PagingOptions
 import kr.hhplus.be.server.service.user.service.UserService
 import kr.hhplus.be.server.service.user.usecase.RequiresUserIdExistsUsecase
 import org.junit.jupiter.api.BeforeEach
@@ -33,6 +35,7 @@ class CouponServiceTest : ServiceTestBase() {
     private lateinit var requireUserIdExistsUsecase: RequiresUserIdExistsUsecase
 
     private lateinit var couponService: CouponService
+
 
 
     @BeforeEach
@@ -127,6 +130,7 @@ class CouponServiceTest : ServiceTestBase() {
         fun returnsAllUserCoupons() {
             // given
             val userId = 1L
+            val pagingOptions = PagingOptions(page = 0, size = 10)
             val expectedCoupons: List<UserCoupon> = listOf(
                 UserCoupon(
                     id = 1L, userId = userId, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
@@ -138,14 +142,19 @@ class CouponServiceTest : ServiceTestBase() {
                 )
             )
             every { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
-            every { couponPort.findAllUserCoupons(userId) } returns expectedCoupons
+            every { couponPort.findPagedUserCoupons(userId, any()) } returns PagedList(
+                items = expectedCoupons,
+                page = 0,
+                size = 10,
+                totalCount = 2
+            )
 
             // when
-            val result: List<UserCoupon> = couponService.findAllUserCoupons(userId)
+            val result: List<UserCoupon> = couponService.findPagedUserCoupons(userId, pagingOptions = pagingOptions).items
 
             // then
             result shouldBe expectedCoupons
-            verify { couponPort.findAllUserCoupons(userId) }
+            verify { couponPort.findPagedUserCoupons(userId, any()) }
         }
 
         @Test
@@ -153,15 +162,21 @@ class CouponServiceTest : ServiceTestBase() {
         fun returnsEmptyListWhenNoCoupons() {
             // given
             val userId = 1L
+            val pagingOptions = PagingOptions(page = 0, size = 10)
             every { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
-            every { couponPort.findAllUserCoupons(userId) } returns emptyList()
+            every { couponPort.findPagedUserCoupons(userId, any()) } returns PagedList(
+                items = emptyList(),
+                page = 0,
+                size = 10,
+                totalCount = 0
+            )
 
             // when
-            val result: List<UserCoupon> = couponService.findAllUserCoupons(userId)
+            val result: List<UserCoupon> = couponService.findPagedUserCoupons(userId, pagingOptions).items
 
             // then
             result shouldBe emptyList()
-            verify { couponPort.findAllUserCoupons(userId) }
+            verify { couponPort.findPagedUserCoupons(userId, any()) }
         }
     }
 
@@ -182,39 +197,38 @@ class CouponServiceTest : ServiceTestBase() {
 
             coEvery { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
             coEvery { couponPort.existsCoupon(couponId = any()) } returns true
-            coEvery { couponPort.issueCoupon(couponId) } returns expectedUserCoupon
+            coEvery { couponPort.issueCoupon(userId, couponId, any()) } returns expectedUserCoupon
 
             // when
             val result: UserCoupon = couponService.issueCoupon(userId, couponId)
 
             // then
             result shouldBe expectedUserCoupon
-            coVerify { couponPort.issueCoupon(couponId) }
+            coVerify { couponPort.issueCoupon(userId, couponId, any()) }
         }
 
         @Test
         @DisplayName("쿠폰 발급 실패 시 CompensationScope가 롤백을 처리한다")
-        fun rollsBackOnIssueCouponFailure() = runTest {
+        fun rollsBackWhenIssueCouponFails() = runTest {
             // given
             val userId = 1L
             val couponId = 1L
-            val issuedUserCoupon = UserCoupon(
-                id = 1L, userId = userId, couponId = couponId, couponName = "신규가입쿠폰", discount = 2000L,
-                status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
-            )
+            val testException = RuntimeException("쿠폰 발급 실패")
 
             coEvery { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
             coEvery { couponPort.existsCoupon(couponId = any()) } returns true
-            coEvery { couponPort.issueCoupon(couponId) } returns issuedUserCoupon
-            // 실패 상황을 시뮬레이션하기 위해 예외를 발생시킬 수는 없지만,
-            // 정상 케이스를 통해 CompensationScope의 구조를 검증
+            // 쿠폰 발급 자체에서 예외 발생
+            coEvery { couponPort.issueCoupon(userId, couponId, any()) } throws testException
+            coEvery { couponPort.revokeCoupon(issuedUserCoupon = any(), now = any()) } just Runs
 
-            // when
-            val result: UserCoupon = couponService.issueCoupon(userId, couponId)
+            // when & then
+            shouldThrow<RuntimeException> {
+                couponService.issueCoupon(userId, couponId)
+            }
 
-            // then
-            result shouldBe issuedUserCoupon
-            coVerify { couponPort.issueCoupon(couponId) }
+            // 발급이 실패했으므로 롤백도 호출되지 않음
+            coVerify { couponPort.issueCoupon(userId, couponId, any()) }
+            coVerify(exactly = 0) { couponPort.revokeCoupon(any(), any()) }
         }
     }
 

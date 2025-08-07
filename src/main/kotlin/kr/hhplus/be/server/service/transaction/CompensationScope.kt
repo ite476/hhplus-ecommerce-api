@@ -25,7 +25,7 @@ class CompensationScope {
 
     suspend fun rollbackAll() {
         while (stack.isNotEmpty()) {
-            val rollback = stack.removeLast()
+            val rollback = stack.pop()
             try {
                 rollback() // 확실히 실행
             } catch (ex: Exception) {
