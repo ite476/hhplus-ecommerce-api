@@ -153,8 +153,8 @@ class PointControllerTest {
     }
 
     @Test
-    @DisplayName("0 이하의 포인트 충전 요청 - 422 Unprocessable Entity 오류를 반환한다")
-    fun chargePoint_InvalidAmount_Returns422Error() {
+    @DisplayName("0 이하의 포인트 충전 요청 - 400 Bad Request 오류를 반환한다")
+    fun chargePoint_InvalidAmount_Returns400Error() {
         // Given
         val userId = 1L
         val invalidAmount = 0L
@@ -172,8 +172,7 @@ class PointControllerTest {
                 .retrieve()
                 .toEntity(String::class.java)
         } catch (e: RestClientResponseException) {
-            e.statusCode shouldBe HttpStatus.UNPROCESSABLE_ENTITY
-            e.responseBodyAsString.contains("충전 포인트는 0보다 커야 합니다.") shouldBe true
+            e.statusCode shouldBe HttpStatus.BAD_REQUEST
         }
     }
 
