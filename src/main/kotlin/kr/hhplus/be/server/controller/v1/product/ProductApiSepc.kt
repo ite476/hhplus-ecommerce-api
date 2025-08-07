@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.ExampleObject
 import io.swagger.v3.oas.annotations.responses.ApiResponse
+import jakarta.validation.Valid
 import kr.hhplus.be.server.controller.dto.request.PagingOptionsRequestParam
 import kr.hhplus.be.server.controller.v1.product.response.GetProductsPopularResponse
 import kr.hhplus.be.server.controller.v1.product.response.GetProductsResponse
@@ -45,7 +46,7 @@ interface ProductApiSepc {
         ]
     )
     fun getProducts(
-        @ParameterObject pagingOptions: PagingOptionsRequestParam
+        @ParameterObject @Valid pagingOptions: PagingOptionsRequestParam
     ): ResponseEntity<GetProductsResponse>
 
     @Operation(
@@ -84,6 +85,6 @@ interface ProductApiSepc {
         ]
     )
     fun getPopularProducts(
-        @ParameterObject pagingOptions: PagingOptionsRequestParam
+        @ParameterObject @Valid pagingOptions: PagingOptionsRequestParam
     ): ResponseEntity<GetProductsPopularResponse>
 }
