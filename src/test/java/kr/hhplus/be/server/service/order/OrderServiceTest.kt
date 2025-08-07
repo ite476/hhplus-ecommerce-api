@@ -1,30 +1,25 @@
 package kr.hhplus.be.server.service.order
 
 import io.kotest.matchers.shouldBe
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.impl.annotations.MockK
-import kotlinx.coroutines.newFixedThreadPoolContext
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import kr.hhplus.be.server.service.ServiceTestBase
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
 import kr.hhplus.be.server.service.coupon.entity.UserCouponStatus
-import kr.hhplus.be.server.service.coupon.usecase.FindUserCouponByIdUsecase
-import kr.hhplus.be.server.service.coupon.usecase.UseUserCouponUsecase
 import kr.hhplus.be.server.service.order.entity.Order
 import kr.hhplus.be.server.service.order.entity.OrderItem
 import kr.hhplus.be.server.service.order.port.DataPlatformPort
 import kr.hhplus.be.server.service.order.port.OrderPort
 import kr.hhplus.be.server.service.order.service.OrderService
+import kr.hhplus.be.server.service.order.service.OrderServiceFacade
 import kr.hhplus.be.server.service.point.entity.PointChange
 import kr.hhplus.be.server.service.point.entity.PointChangeType
-import kr.hhplus.be.server.service.point.usecase.ChargePointUsecase
-import kr.hhplus.be.server.service.point.usecase.UsePointUsecase
 import kr.hhplus.be.server.service.product.entity.Product
-import kr.hhplus.be.server.service.product.usecase.AddProductStockUsecase
-import kr.hhplus.be.server.service.product.usecase.FindProductByIdUsecase
-import kr.hhplus.be.server.service.product.usecase.ReduceProductStockUsecase
 import kr.hhplus.be.server.service.user.entity.User
-import kr.hhplus.be.server.service.user.usecase.FindUserByIdUsecase
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -33,30 +28,7 @@ import org.junit.jupiter.api.Test
 @DisplayName("OrderService 단위테스트")
 class OrderServiceTest : ServiceTestBase() {
     @MockK
-    private lateinit var findUserByIdUsecase: FindUserByIdUsecase
-
-    @MockK
-    private lateinit var findProductByIdUsercase: FindProductByIdUsecase
-
-    @MockK
-    private lateinit var reduceProductStockUsecase: ReduceProductStockUsecase
-
-    @MockK
-    private lateinit var addProduceStockUsecase: AddProductStockUsecase
-
-    @MockK
-    private lateinit var usePointUsecase: UsePointUsecase
-
-    @MockK
-    private lateinit var chargePointUsecase: ChargePointUsecase
-
-    @MockK
-    private lateinit var findUserCouponByIdUsecase: FindUserCouponByIdUsecase
-
-    @MockK
-    private lateinit var useUserCouponUsecase: UseUserCouponUsecase
-
-
+    private lateinit var orderServiceFacade: OrderServiceFacade
 
     @MockK
     private lateinit var orderPort: OrderPort
@@ -72,14 +44,7 @@ class OrderServiceTest : ServiceTestBase() {
     fun setupOrderService() {
         super.setUp()
         orderService = OrderService(
-            findUserByIdUsecase = findUserByIdUsecase,
-            findProductByIdUsercase = findProductByIdUsercase,
-            reduceProductStockUsecase = reduceProductStockUsecase,
-            addProduceStockUsecase = addProduceStockUsecase,
-            usePointUsecase = usePointUsecase,
-            chargePointUsecase = chargePointUsecase,
-            findUserCouponByIdUsecase = findUserCouponByIdUsecase,
-            useUserCouponUsecase = useUserCouponUsecase,
+            facade = orderServiceFacade,
             orderPort = orderPort,
             dataPlatformPort = dataPlatformPort,
             timeProvider = timeProvider
@@ -129,12 +94,12 @@ class OrderServiceTest : ServiceTestBase() {
             )
 
             // Mock 설정
-            every { findUserByIdUsecase.findUserById(userId) } returns user
-            every { findProductByIdUsercase.findProductById(productId = 1L) } returns productEntities[0]
-            every { findProductByIdUsercase.findProductById(productId = 2L) } returns productEntities[1]
-            every { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 2, now = fixedTime) } returns Unit
-            every { reduceProductStockUsecase.reduceProductStock(productId = 2L, quantity = 1, now = fixedTime) } returns Unit
-            every { usePointUsecase.usePoint(userId = userId, point = 14000L) } returns pointChange
+            every { orderServiceFacade.findUserById(userId) } returns user
+            every { orderServiceFacade.findProductById(productId = 1L) } returns productEntities[0]
+            every { orderServiceFacade.findProductById(productId = 2L) } returns productEntities[1]
+            every { orderServiceFacade.reduceProductStock(productId = 1L, quantity = 2, now = fixedTime) } returns Unit
+            every { orderServiceFacade.reduceProductStock(productId = 2L, quantity = 1, now = fixedTime) } returns Unit
+            every { orderServiceFacade.usePoint(userId = userId, point = 14000L) } returns pointChange
             coEvery { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) } returns expectedOrder
             coEvery { dataPlatformPort.sendOrderData(order = any()) } returns Unit
 
@@ -143,12 +108,12 @@ class OrderServiceTest : ServiceTestBase() {
 
             // then
             result shouldBe expectedOrder
-            verify { findUserByIdUsecase.findUserById(userId) }
-            verify { findProductByIdUsercase.findProductById(productId = 1L) }
-            verify { findProductByIdUsercase.findProductById(productId = 2L) }
-            verify { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 2, now = fixedTime) }
-            verify { reduceProductStockUsecase.reduceProductStock(productId = 2L, quantity = 1, now = fixedTime) }
-            verify { usePointUsecase.usePoint(userId = userId, point = 14000L) }
+            verify { orderServiceFacade.findUserById(userId) }
+            verify { orderServiceFacade.findProductById(productId = 1L) }
+            verify { orderServiceFacade.findProductById(productId = 2L) }
+            verify { orderServiceFacade.reduceProductStock(productId = 1L, quantity = 2, now = fixedTime) }
+            verify { orderServiceFacade.reduceProductStock(productId = 2L, quantity = 1, now = fixedTime) }
+            verify { orderServiceFacade.usePoint(userId = userId, point = 14000L) }
             coVerify { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) }
             coVerify { dataPlatformPort.sendOrderData(order = any()) }
         }
@@ -192,12 +157,12 @@ class OrderServiceTest : ServiceTestBase() {
             )
 
             // Mock 설정
-            every { findUserByIdUsecase.findUserById(userId) } returns user
-            every { findProductByIdUsercase.findProductById(productId = 1L) } returns product
-            every { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 1, now = fixedTime) } returns Unit
-            every { findUserCouponByIdUsecase.findUserCouponById(userId = userId, userCouponId = userCouponId) } returns userCoupon
-            every { useUserCouponUsecase.useUserCoupon(userCoupon = userCoupon, now = fixedTime) } returns Unit
-            every { usePointUsecase.usePoint(userId, point = 2500L) } returns pointChange
+            every { orderServiceFacade.findUserById(userId) } returns user
+            every { orderServiceFacade.findProductById(productId = 1L) } returns product
+            every { orderServiceFacade.reduceProductStock(productId = 1L, quantity = 1, now = fixedTime) } returns Unit
+            every { orderServiceFacade.findUserCouponById(userId = userId, userCouponId = userCouponId) } returns userCoupon
+            every { orderServiceFacade.useUserCoupon(userCoupon = userCoupon, now = fixedTime) } returns Unit
+            every { orderServiceFacade.usePoint(userId, point = 2500L) } returns pointChange
             coEvery { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) } returns expectedOrder
             coEvery { dataPlatformPort.sendOrderData(order = any()) } returns Unit
 
@@ -206,12 +171,12 @@ class OrderServiceTest : ServiceTestBase() {
 
             // then
             result shouldBe expectedOrder
-            verify { findUserByIdUsecase.findUserById(userId) }
-            verify { findProductByIdUsercase.findProductById(productId = 1L) }
-            verify { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 1, now = fixedTime) }
-            verify { findUserCouponByIdUsecase.findUserCouponById(userId = userId, userCouponId = userCouponId) }
-            verify { useUserCouponUsecase.useUserCoupon(userCoupon = userCoupon, now = fixedTime) }
-            verify { usePointUsecase.usePoint(userId = userId, point = 2500L) }
+            verify { orderServiceFacade.findUserById(userId) }
+            verify { orderServiceFacade.findProductById(productId = 1L) }
+            verify { orderServiceFacade.reduceProductStock(productId = 1L, quantity = 1, now = fixedTime) }
+            verify { orderServiceFacade.findUserCouponById(userId = userId, userCouponId = userCouponId) }
+            verify { orderServiceFacade.useUserCoupon(userCoupon = userCoupon, now = fixedTime) }
+            verify { orderServiceFacade.usePoint(userId = userId, point = 2500L) }
             coVerify { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) }
             coVerify { dataPlatformPort.sendOrderData(order = any()) }
         }
