@@ -3,6 +3,7 @@ package kr.hhplus.be.server.service
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
+import kr.hhplus.be.server.service.pagination.PagingOptions
 import kr.hhplus.be.server.util.KoreanTimeProvider
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.ExtendWith
@@ -16,6 +17,7 @@ abstract class ServiceTestBase {
     protected lateinit var timeProvider: KoreanTimeProvider
 
     protected val fixedTime = ZonedDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneId.of("Asia/Seoul"))
+    protected val  pagingOptions = PagingOptions(0, 10)
 
     @BeforeEach
 

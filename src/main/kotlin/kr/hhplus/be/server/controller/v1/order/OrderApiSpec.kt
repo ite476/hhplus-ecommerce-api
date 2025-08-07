@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.ExampleObject
 import io.swagger.v3.oas.annotations.responses.ApiResponse
+import jakarta.validation.Valid
 import kr.hhplus.be.server.controller.v1.order.request.PostOrderRequestBody
 import kr.hhplus.be.server.controller.v1.order.response.PostOrderResponse
 import org.springframework.http.ResponseEntity
@@ -114,6 +115,6 @@ interface OrderApiSpec {
     )
     fun createOrder(
         @RequestHeader userId: Long,
-        @RequestBody body: PostOrderRequestBody
+        @RequestBody @Valid body: PostOrderRequestBody
     ): ResponseEntity<PostOrderResponse>
 }

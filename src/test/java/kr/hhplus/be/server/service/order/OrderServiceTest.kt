@@ -1,30 +1,26 @@
 package kr.hhplus.be.server.service.order
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.impl.annotations.MockK
-import kotlinx.coroutines.newFixedThreadPoolContext
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import kr.hhplus.be.server.service.ServiceTestBase
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
 import kr.hhplus.be.server.service.coupon.entity.UserCouponStatus
-import kr.hhplus.be.server.service.coupon.usecase.FindUserCouponByIdUsecase
-import kr.hhplus.be.server.service.coupon.usecase.UseUserCouponUsecase
 import kr.hhplus.be.server.service.order.entity.Order
 import kr.hhplus.be.server.service.order.entity.OrderItem
 import kr.hhplus.be.server.service.order.port.DataPlatformPort
 import kr.hhplus.be.server.service.order.port.OrderPort
 import kr.hhplus.be.server.service.order.service.OrderService
+import kr.hhplus.be.server.service.order.service.OrderServiceFacade
 import kr.hhplus.be.server.service.point.entity.PointChange
 import kr.hhplus.be.server.service.point.entity.PointChangeType
-import kr.hhplus.be.server.service.point.usecase.ChargePointUsecase
-import kr.hhplus.be.server.service.point.usecase.UsePointUsecase
 import kr.hhplus.be.server.service.product.entity.Product
-import kr.hhplus.be.server.service.product.usecase.AddProductStockUsecase
-import kr.hhplus.be.server.service.product.usecase.FindProductByIdUsecase
-import kr.hhplus.be.server.service.product.usecase.ReduceProductStockUsecase
 import kr.hhplus.be.server.service.user.entity.User
-import kr.hhplus.be.server.service.user.usecase.FindUserByIdUsecase
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -33,30 +29,7 @@ import org.junit.jupiter.api.Test
 @DisplayName("OrderService 단위테스트")
 class OrderServiceTest : ServiceTestBase() {
     @MockK
-    private lateinit var findUserByIdUsecase: FindUserByIdUsecase
-
-    @MockK
-    private lateinit var findProductByIdUsercase: FindProductByIdUsecase
-
-    @MockK
-    private lateinit var reduceProductStockUsecase: ReduceProductStockUsecase
-
-    @MockK
-    private lateinit var addProduceStockUsecase: AddProductStockUsecase
-
-    @MockK
-    private lateinit var usePointUsecase: UsePointUsecase
-
-    @MockK
-    private lateinit var chargePointUsecase: ChargePointUsecase
-
-    @MockK
-    private lateinit var findUserCouponByIdUsecase: FindUserCouponByIdUsecase
-
-    @MockK
-    private lateinit var useUserCouponUsecase: UseUserCouponUsecase
-
-
+    private lateinit var orderServiceFacade: OrderServiceFacade
 
     @MockK
     private lateinit var orderPort: OrderPort
@@ -72,14 +45,7 @@ class OrderServiceTest : ServiceTestBase() {
     fun setupOrderService() {
         super.setUp()
         orderService = OrderService(
-            findUserByIdUsecase = findUserByIdUsecase,
-            findProductByIdUsercase = findProductByIdUsercase,
-            reduceProductStockUsecase = reduceProductStockUsecase,
-            addProduceStockUsecase = addProduceStockUsecase,
-            usePointUsecase = usePointUsecase,
-            chargePointUsecase = chargePointUsecase,
-            findUserCouponByIdUsecase = findUserCouponByIdUsecase,
-            useUserCouponUsecase = useUserCouponUsecase,
+            facade = orderServiceFacade,
             orderPort = orderPort,
             dataPlatformPort = dataPlatformPort,
             timeProvider = timeProvider
@@ -129,12 +95,12 @@ class OrderServiceTest : ServiceTestBase() {
             )
 
             // Mock 설정
-            every { findUserByIdUsecase.findUserById(userId) } returns user
-            every { findProductByIdUsercase.findProductById(productId = 1L) } returns productEntities[0]
-            every { findProductByIdUsercase.findProductById(productId = 2L) } returns productEntities[1]
-            every { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 2, now = fixedTime) } returns Unit
-            every { reduceProductStockUsecase.reduceProductStock(productId = 2L, quantity = 1, now = fixedTime) } returns Unit
-            every { usePointUsecase.usePoint(userId = userId, point = 14000L) } returns pointChange
+            every { orderServiceFacade.findUserById(userId) } returns user
+            every { orderServiceFacade.findProductById(1L) } returns productEntities[0]
+            every { orderServiceFacade.findProductById(2L) } returns productEntities[1]
+            every { orderServiceFacade.reduceProductStock(1L, 2, fixedTime) } returns Unit
+            every { orderServiceFacade.reduceProductStock(2L, 1, fixedTime) } returns Unit
+            every { orderServiceFacade.usePoint(userId, 14000L) } returns pointChange
             coEvery { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) } returns expectedOrder
             coEvery { dataPlatformPort.sendOrderData(order = any()) } returns Unit
 
@@ -143,12 +109,12 @@ class OrderServiceTest : ServiceTestBase() {
 
             // then
             result shouldBe expectedOrder
-            verify { findUserByIdUsecase.findUserById(userId) }
-            verify { findProductByIdUsercase.findProductById(productId = 1L) }
-            verify { findProductByIdUsercase.findProductById(productId = 2L) }
-            verify { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 2, now = fixedTime) }
-            verify { reduceProductStockUsecase.reduceProductStock(productId = 2L, quantity = 1, now = fixedTime) }
-            verify { usePointUsecase.usePoint(userId = userId, point = 14000L) }
+            verify { orderServiceFacade.findUserById(userId) }
+            verify { orderServiceFacade.findProductById(1L) }
+            verify { orderServiceFacade.findProductById(2L) }
+            verify { orderServiceFacade.reduceProductStock(1L, 2, fixedTime) }
+            verify { orderServiceFacade.reduceProductStock(2L, 1, fixedTime) }
+            verify { orderServiceFacade.usePoint(userId, 14000L) }
             coVerify { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) }
             coVerify { dataPlatformPort.sendOrderData(order = any()) }
         }
@@ -192,12 +158,12 @@ class OrderServiceTest : ServiceTestBase() {
             )
 
             // Mock 설정
-            every { findUserByIdUsecase.findUserById(userId) } returns user
-            every { findProductByIdUsercase.findProductById(productId = 1L) } returns product
-            every { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 1, now = fixedTime) } returns Unit
-            every { findUserCouponByIdUsecase.findUserCouponById(userId = userId, userCouponId = userCouponId) } returns userCoupon
-            every { useUserCouponUsecase.useUserCoupon(userCoupon = userCoupon, now = fixedTime) } returns Unit
-            every { usePointUsecase.usePoint(userId, point = 2500L) } returns pointChange
+            every { orderServiceFacade.findUserById(userId) } returns user
+            every { orderServiceFacade.findProductById(1L) } returns product
+            every { orderServiceFacade.reduceProductStock(1L, 1, fixedTime) } returns Unit
+            every { orderServiceFacade.findUserCouponById(userId, userCouponId) } returns userCoupon
+            every { orderServiceFacade.useUserCoupon(userCoupon, fixedTime) } returns Unit
+            every { orderServiceFacade.usePoint(userId, 2500L) } returns pointChange
             coEvery { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) } returns expectedOrder
             coEvery { dataPlatformPort.sendOrderData(order = any()) } returns Unit
 
@@ -206,12 +172,12 @@ class OrderServiceTest : ServiceTestBase() {
 
             // then
             result shouldBe expectedOrder
-            verify { findUserByIdUsecase.findUserById(userId) }
-            verify { findProductByIdUsercase.findProductById(productId = 1L) }
-            verify { reduceProductStockUsecase.reduceProductStock(productId = 1L, quantity = 1, now = fixedTime) }
-            verify { findUserCouponByIdUsecase.findUserCouponById(userId = userId, userCouponId = userCouponId) }
-            verify { useUserCouponUsecase.useUserCoupon(userCoupon = userCoupon, now = fixedTime) }
-            verify { usePointUsecase.usePoint(userId = userId, point = 2500L) }
+            verify { orderServiceFacade.findUserById(userId) }
+            verify { orderServiceFacade.findProductById(1L) }
+            verify { orderServiceFacade.reduceProductStock(1L, 1, fixedTime) }
+            verify { orderServiceFacade.findUserCouponById(userId, userCouponId) }
+            verify { orderServiceFacade.useUserCoupon(userCoupon, fixedTime) }
+            verify { orderServiceFacade.usePoint(userId, 2500L) }
             coVerify { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) }
             coVerify { dataPlatformPort.sendOrderData(order = any()) }
         }
@@ -333,6 +299,281 @@ class OrderServiceTest : ServiceTestBase() {
             input.userCouponId shouldBe null
             input.products[0].productId shouldBe 1L
             input.products[0].quantity shouldBe 1
+        }
+    }
+
+    @Nested
+    @DisplayName("CompensationScope 롤백 테스트")
+    inner class RollbackTest {
+
+        @Test
+        @DisplayName("데이터 플랫폼 전송 실패 시 전체 롤백이 수행된다 (쿠폰 없는 경우)")
+        fun rollsBackAllWhenDataPlatformFailsWithoutCoupon() = runTest {
+            // given
+            val userId = 1L
+            val products: List<OrderService.CreateOrderInput.ProductWithQuantity> = listOf(
+                OrderService.CreateOrderInput.ProductWithQuantity(productId = 1L, quantity = 2)
+            )
+            val input = OrderService.CreateOrderInput(userId = userId, products = products, userCouponId = null)
+
+            val user = User(id = userId, name = "김철수", point = 20000L)
+            val product = Product(id = 1L, name = "아메리카노", price = 4500L, stock = 100, createdAt = fixedTime)
+            val pointChange = PointChange(
+                id = 1L,
+                userId = userId,
+                pointChange = 9000L,
+                type = PointChangeType.Use,
+                happenedAt = fixedTime
+            )
+            
+            val orderItems: List<OrderItem> = listOf(
+                OrderItem(id = 1L, productId = 1L, productName = "아메리카노", unitPrice = 4500L, quantity = 2)
+            )
+            val createdOrder = Order(
+                id = 1L,
+                userId = userId,
+                userCouponId = null,
+                orderItems = orderItems,
+                totalProductsPrice = 9000L,
+                discountedPrice = 0L,
+                orderedAt = fixedTime
+            )
+
+            // Mock 설정 - 정상 플로우
+            every { orderServiceFacade.findUserById(userId) } returns user
+            every { orderServiceFacade.findProductById(1L) } returns product
+            every { orderServiceFacade.reduceProductStock(1L, 2, fixedTime) } returns Unit
+            every { orderServiceFacade.usePoint(userId, 9000L) } returns pointChange
+            coEvery { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) } returns createdOrder
+            
+            // 데이터 플랫폼 전송에서 실패
+            val dataException = RuntimeException("데이터 플랫폼 전송 실패")
+            coEvery { dataPlatformPort.sendOrderData(order = any()) } throws dataException
+            
+            // 롤백 메서드들 모킹
+            every { orderServiceFacade.addProductStock(1L, 2, fixedTime) } returns Unit
+            val rollbackPointChange1 = PointChange(
+                id = 2L,
+                userId = userId,
+                pointChange = 9000L,
+                type = PointChangeType.Charge,
+                happenedAt = fixedTime
+            )
+            every { orderServiceFacade.chargePoint(userId, 9000L) } returns rollbackPointChange1
+            every { orderPort.cancelOrder(order = any()) } returns Unit
+
+            // when & then
+            shouldThrow<RuntimeException> {
+                orderService.createOrder(input)
+            }
+
+            // 정상 작업들이 실행되었는지 확인
+            verify { orderServiceFacade.findUserById(userId) }
+            verify { orderServiceFacade.findProductById(1L) }
+            verify { orderServiceFacade.reduceProductStock(1L, 2, fixedTime) }
+            verify { orderServiceFacade.usePoint(userId, 9000L) }
+            coVerify { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) }
+            coVerify { dataPlatformPort.sendOrderData(order = any()) }
+
+            // 롤백 작업들이 실행되었는지 확인
+            verify { orderServiceFacade.addProductStock(1L, 2, fixedTime) }
+            verify { orderServiceFacade.chargePoint(userId, 9000L) }
+            verify { orderPort.cancelOrder(order = any()) }
+        }
+
+        @Test
+        @DisplayName("데이터 플랫폼 전송 실패 시 전체 롤백이 수행된다 (쿠폰 있는 경우)")
+        fun rollsBackAllWhenDataPlatformFailsWithCoupon() = runTest {
+            // given
+            val userId = 1L
+            val userCouponId = 1L
+            val products: List<OrderService.CreateOrderInput.ProductWithQuantity> = listOf(
+                OrderService.CreateOrderInput.ProductWithQuantity(productId = 1L, quantity = 1)
+            )
+            val input = OrderService.CreateOrderInput(userId = userId, products = products, userCouponId = userCouponId)
+
+            val user = User(id = userId, name = "김철수", point = 15000L)
+            val product = Product(id = 1L, name = "아메리카노", price = 4500L, stock = 100, createdAt = fixedTime)
+            val userCoupon = UserCoupon(
+                id = userCouponId, userId = userId, couponId = 1L, couponName = "신규가입쿠폰", discount = 2000L,
+                status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
+            )
+            val pointChange = PointChange(
+                id = 1L,
+                userId = userId,
+                pointChange = 2500L, // 4500 - 2000 = 2500
+                type = PointChangeType.Use,
+                happenedAt = fixedTime
+            )
+            
+            val orderItems: List<OrderItem> = listOf(
+                OrderItem(id = 1L, productId = 1L, productName = "아메리카노", unitPrice = 4500L, quantity = 1)
+            )
+            val createdOrder = Order(
+                id = 1L,
+                userId = userId,
+                userCouponId = userCouponId,
+                orderItems = orderItems,
+                totalProductsPrice = 4500L,
+                discountedPrice = 2000L,
+                orderedAt = fixedTime
+            )
+
+            // Mock 설정 - 정상 플로우
+            every { orderServiceFacade.findUserById(userId) } returns user
+            every { orderServiceFacade.findProductById(1L) } returns product
+            every { orderServiceFacade.findUserCouponById(userId, userCouponId) } returns userCoupon
+            every { orderServiceFacade.reduceProductStock(1L, 1, fixedTime) } returns Unit
+            every { orderServiceFacade.useUserCoupon(userCoupon, fixedTime) } returns Unit
+            every { orderServiceFacade.usePoint(userId, 2500L) } returns pointChange
+            coEvery { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) } returns createdOrder
+            
+            // 데이터 플랫폼 전송에서 실패
+            val dataException = RuntimeException("데이터 플랫폼 전송 실패")
+            coEvery { dataPlatformPort.sendOrderData(order = any()) } throws dataException
+            
+            // 롤백 메서드들 모킹
+            every { orderServiceFacade.addProductStock(1L, 1, fixedTime) } returns Unit
+            every { orderServiceFacade.rollbackUserCouponUsage(userCoupon, fixedTime) } returns Unit
+            val rollbackPointChange2 = PointChange(
+                id = 3L,
+                userId = userId,
+                pointChange = 2500L,
+                type = PointChangeType.Charge,
+                happenedAt = fixedTime
+            )
+            every { orderServiceFacade.chargePoint(userId, 2500L) } returns rollbackPointChange2
+            every { orderPort.cancelOrder(order = any()) } returns Unit
+
+            // when & then
+            shouldThrow<RuntimeException> {
+                orderService.createOrder(input)
+            }
+
+            // 정상 작업들이 실행되었는지 확인
+            verify { orderServiceFacade.findUserById(userId) }
+            verify { orderServiceFacade.findProductById(1L) }
+            verify { orderServiceFacade.findUserCouponById(userId, userCouponId) }
+            verify { orderServiceFacade.reduceProductStock(1L, 1, fixedTime) }
+            verify { orderServiceFacade.usePoint(userId, 2500L) }
+            coVerify { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) }
+            coVerify { dataPlatformPort.sendOrderData(order = any()) }
+
+            // 롤백 작업들이 실행되었는지 확인
+            verify { orderServiceFacade.addProductStock(1L, 1, fixedTime) }
+            verify { orderServiceFacade.rollbackUserCouponUsage(userCoupon, fixedTime) }
+            verify { orderServiceFacade.chargePoint(userId, 2500L) }
+            verify { orderPort.cancelOrder(order = any()) }
+        }
+
+        @Test
+        @DisplayName("주문 생성 실패 시 부분 롤백이 수행된다")
+        fun rollsBackPartiallyWhenOrderCreationFails() = runTest {
+            // given
+            val userId = 1L
+            val products: List<OrderService.CreateOrderInput.ProductWithQuantity> = listOf(
+                OrderService.CreateOrderInput.ProductWithQuantity(productId = 1L, quantity = 1)
+            )
+            val input = OrderService.CreateOrderInput(userId = userId, products = products, userCouponId = null)
+
+            val user = User(id = userId, name = "김철수", point = 15000L)
+            val product = Product(id = 1L, name = "아메리카노", price = 4500L, stock = 100, createdAt = fixedTime)
+            val pointChange = PointChange(
+                id = 1L,
+                userId = userId,
+                pointChange = 4500L,
+                type = PointChangeType.Use,
+                happenedAt = fixedTime
+            )
+
+            // Mock 설정 - 주문 생성까지는 정상, 주문 생성에서 실패
+            every { orderServiceFacade.findUserById(userId) } returns user
+            every { orderServiceFacade.findProductById(1L) } returns product
+            every { orderServiceFacade.reduceProductStock(1L, 1, fixedTime) } returns Unit
+            every { orderServiceFacade.usePoint(userId, 4500L) } returns pointChange
+            
+            // 주문 생성에서 실패
+            val orderException = RuntimeException("주문 생성 실패")
+            coEvery { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) } throws orderException
+            
+            // 롤백 메서드들 모킹
+            every { orderServiceFacade.addProductStock(1L, 1, fixedTime) } returns Unit
+            val rollbackPointChange3 = PointChange(
+                id = 4L,
+                userId = userId,
+                pointChange = 4500L,
+                type = PointChangeType.Charge,
+                happenedAt = fixedTime
+            )
+            every { orderServiceFacade.chargePoint(userId, 4500L) } returns rollbackPointChange3
+
+            // when & then
+            shouldThrow<RuntimeException> {
+                orderService.createOrder(input)
+            }
+
+            // 정상 작업들이 실행되었는지 확인
+            verify { orderServiceFacade.findUserById(userId) }
+            verify { orderServiceFacade.findProductById(1L) }
+            verify { orderServiceFacade.reduceProductStock(1L, 1, fixedTime) }
+            verify { orderServiceFacade.usePoint(userId, 4500L) }
+            coVerify { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) }
+
+            // 롤백 작업들이 실행되었는지 확인 (주문 취소는 실행되지 않음 - 주문이 생성되지 않았으므로)
+            verify { orderServiceFacade.addProductStock(1L, 1, fixedTime) }
+            verify { orderServiceFacade.chargePoint(userId, 4500L) }
+            verify(exactly = 0) { orderPort.cancelOrder(order = any()) }
+            
+            // 데이터 플랫폼 전송은 시도되지 않음
+            coVerify(exactly = 0) { dataPlatformPort.sendOrderData(order = any()) }
+        }
+
+        @Test
+        @DisplayName("포인트 사용 실패 시 부분 롤백이 수행된다")
+        fun rollsBackPartiallyWhenPointUsageFails() = runTest {
+            // given
+            val userId = 1L
+            val products: List<OrderService.CreateOrderInput.ProductWithQuantity> = listOf(
+                OrderService.CreateOrderInput.ProductWithQuantity(productId = 1L, quantity = 1)
+            )
+            val input = OrderService.CreateOrderInput(userId = userId, products = products, userCouponId = null)
+
+            val user = User(id = userId, name = "김철수", point = 15000L)
+            val product = Product(id = 1L, name = "아메리카노", price = 4500L, stock = 100, createdAt = fixedTime)
+
+            // Mock 설정 - 포인트 사용까지는 정상, 포인트 사용에서 실패
+            every { orderServiceFacade.findUserById(userId) } returns user
+            every { orderServiceFacade.findProductById(1L) } returns product
+            every { orderServiceFacade.reduceProductStock(1L, 1, fixedTime) } returns Unit
+            
+            // 포인트 사용에서 실패
+            val pointException = RuntimeException("포인트 사용 실패")
+            every { orderServiceFacade.usePoint(userId, 4500L) } throws pointException
+            
+            // 롤백 메서드들 모킹
+            every { orderServiceFacade.addProductStock(1L, 1, fixedTime) } returns Unit
+
+            // when & then
+            shouldThrow<RuntimeException> {
+                orderService.createOrder(input)
+            }
+
+            // 정상 작업들이 실행되었는지 확인
+            verify { orderServiceFacade.findUserById(userId) }
+            verify { orderServiceFacade.findProductById(1L) }
+            verify { orderServiceFacade.reduceProductStock(1L, 1, fixedTime) }
+            verify { orderServiceFacade.usePoint(userId, 4500L) }
+
+            // 롤백 작업들이 실행되었는지 확인 (재고만 롤백됨)
+            verify { orderServiceFacade.addProductStock(1L, 1, fixedTime) }
+            
+            // 포인트 사용이 실패했으므로 포인트 롤백은 실행되지 않음
+            verify(exactly = 0) { orderServiceFacade.chargePoint(userId, any()) }
+            
+            // 후속 작업들은 실행되지 않음
+            coVerify(exactly = 0) { orderPort.createOrder(user = any(), userCouponId = any(), productsStamp = any(), now = any()) }
+            verify(exactly = 0) { orderPort.cancelOrder(order = any()) }
+            coVerify(exactly = 0) { dataPlatformPort.sendOrderData(order = any()) }
         }
     }
 } 

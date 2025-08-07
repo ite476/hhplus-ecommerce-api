@@ -1,6 +1,7 @@
 package kr.hhplus.be.server.controller.v1.order
 
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import kotlinx.coroutines.runBlocking
 import kr.hhplus.be.server.controller.v1.order.request.PostOrderRequestBody
 import kr.hhplus.be.server.controller.v1.order.response.PostOrderResponse
@@ -8,12 +9,14 @@ import kr.hhplus.be.server.service.order.entity.Order
 import kr.hhplus.be.server.service.order.service.OrderService
 import kr.hhplus.be.server.service.order.usecase.CreateOrderUsecase
 import org.springframework.http.ResponseEntity
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import java.net.URI
 
 @RestController
 @RequestMapping("/api/v1/orders")
 @Tag(name = "Order API", description = "주문 API")
+@Validated
 class OrderController(
     val createOrderUsecase: CreateOrderUsecase
     ) : OrderApiSpec {
@@ -21,7 +24,7 @@ class OrderController(
     @PostMapping("")
     override fun createOrder(
         @RequestHeader userId: Long,
-        @RequestBody body: PostOrderRequestBody
+        @RequestBody @Valid body: PostOrderRequestBody
     ): ResponseEntity<PostOrderResponse> {
         val order: Order = runBlocking {
             createOrderUsecase.createOrder(OrderService.CreateOrderInput(
