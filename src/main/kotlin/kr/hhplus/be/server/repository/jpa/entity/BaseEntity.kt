@@ -35,6 +35,11 @@ abstract class BaseEntity {
     open var deletedAt: Instant? = null
         protected set
     
+    @Version
+    @Column(name = "version", nullable = false)
+    open var version: Long = 0L
+        protected set
+    
     /**
      * Soft Delete 실행
      */

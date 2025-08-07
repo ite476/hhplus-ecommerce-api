@@ -38,11 +38,30 @@ class CouponEntity(
     }
     
     /**
-     * 쿠폰 발급
+     * 쿠폰 발급 (동시성 안전)
+     * 
+     * @throws IllegalStateException 발급 불가능한 경우
      */
     fun issue() {
         require(canIssue()) { "더 이상 발급할 수 있는 쿠폰이 없습니다" }
+        
+        // 원자적 연산으로 발급 수량 증가
+        // 실제 DB 업데이트는 Repository에서 원자적 쿼리로 처리
         issuedQuantity++
+    }
+    
+    /**
+     * 쿠폰 발급 시도 (원자적 검증)
+     * 
+     * @return 발급 성공 여부
+     */
+    fun tryIssue(): Boolean {
+        return if (canIssue()) {
+            issuedQuantity++
+            true
+        } else {
+            false
+        }
     }
     
     /**

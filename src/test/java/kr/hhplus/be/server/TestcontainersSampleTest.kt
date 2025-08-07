@@ -1,15 +1,15 @@
 package kr.hhplus.be.server
 
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import org.springframework.context.annotation.Import
-import org.springframework.test.context.TestPropertySource
+import org.springframework.test.context.ActiveProfiles
 import org.testcontainers.junit.jupiter.Testcontainers
 import javax.sql.DataSource
-import org.assertj.core.api.Assertions.*
 
 /**
  * 테스트컨테이너가 제대로 작동하는지 확인하는 샘플 테스트
@@ -22,11 +22,7 @@ import org.assertj.core.api.Assertions.*
 @Testcontainers
 @Import(TestcontainersConfiguration::class)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@TestPropertySource(properties = [
-    "spring.jpa.hibernate.ddl-auto=create-drop",
-    "spring.jpa.show-sql=true",
-    "spring.jpa.properties.hibernate.format_sql=true"
-])
+@ActiveProfiles("test")
 class TestcontainersSampleTest {
 
     @Autowired
