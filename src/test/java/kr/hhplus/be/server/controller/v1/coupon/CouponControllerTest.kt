@@ -1,202 +1,330 @@
 package kr.hhplus.be.server.controller.v1.coupon
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import io.kotest.core.spec.style.BehaviorSpec
+import com.ninjasquad.springmockk.MockkBean
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.mockk.clearAllMocks
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
-import io.mockk.mockk
-
 import kr.hhplus.be.server.controller.advise.GlobalExceptionHandler
+import kr.hhplus.be.server.controller.v1.coupon.response.GetMyCouponsResponse
+import kr.hhplus.be.server.controller.v1.coupon.response.PostCouponIssueResponse
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
 import kr.hhplus.be.server.service.coupon.entity.UserCouponStatus
-import kr.hhplus.be.server.service.coupon.service.CouponService
+import kr.hhplus.be.server.service.coupon.usecase.FindPagedUserCouponsUsecase
+import kr.hhplus.be.server.service.coupon.usecase.IssueCouponUsecase
 import kr.hhplus.be.server.service.exception.BusinessConflictException
 import kr.hhplus.be.server.service.exception.BusinessUnacceptableException
-import org.springframework.http.MediaType
-import org.springframework.test.web.reactive.server.WebTestClient
-import org.springframework.test.web.reactive.server.expectBody
+import kr.hhplus.be.server.service.pagination.PagedList
+import kr.hhplus.be.server.service.pagination.PagingOptions
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.context.annotation.Import
+import org.springframework.http.HttpStatus
+import org.springframework.test.web.client.MockMvcClientHttpRequestFactory
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientResponseException
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-class CouponControllerTest : BehaviorSpec({
-
-    val couponService = mockk<CouponService>()
-    val objectMapper = ObjectMapper()
-    val fixedTime = ZonedDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneId.of("Asia/Seoul"))
+@WebMvcTest(CouponController::class)
+@Import(GlobalExceptionHandler::class)
+@DisplayName("CouponController 테스트")
+class CouponControllerTest {
+    @MockkBean
+    lateinit var findPagedUserCouponsUsecase: FindPagedUserCouponsUsecase
     
-    lateinit var webTestClient: WebTestClient
+    @MockkBean
+    lateinit var issueCouponUsecase: IssueCouponUsecase
 
-    beforeTest {
-        val controller = CouponController(couponService)
-        webTestClient = WebTestClient.bindToController(controller)
-            .controllerAdvice(GlobalExceptionHandler())
+    private val getMyCouponsEndpoint = "/api/v1/mycoupons"
+    private val issueCouponEndpoint = "/api/v1/coupons"
+    private val fixedTime = ZonedDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneId.of("Asia/Seoul"))
+    private val pagingOptions = PagingOptions(0, 10)
+
+    @Autowired
+    lateinit var mockMvc: MockMvc
+    lateinit var restClient: RestClient
+
+    @BeforeEach
+    fun setUp() {
+        clearAllMocks()
+        restClient = RestClient.builder()
+            .requestFactory(MockMvcClientHttpRequestFactory(mockMvc))
             .build()
     }
 
-    Given("GET /api/v1/mycoupons 쿠폰 목록 조회 요청이 들어올 때") {
-        val endpoint = "/api/v1/mycoupons"
+    @Test
+    @DisplayName("정상적인 쿠폰 목록 조회 요청 - 쿠폰 목록이 성공적으로 반환된다")
+    fun getMyCoupons_ValidRequest_ReturnsSuccessResponse() {
+        // Given
         val userId = 1L
+        val userCoupons = listOf(
+            UserCoupon(
+                id = 1L,
+                userId = userId,
+                couponId = 1L,
+                couponName = "신규가입쿠폰",
+                discount = 2000L,
+                status = UserCouponStatus.ACTIVE,
+                issuedAt = fixedTime,
+                usedAt = null,
+                validUntil = fixedTime.plusDays(30)
+            )
+        )
+        
+        every { findPagedUserCouponsUsecase.findPagedUserCoupons(userId, any()) } returns PagedList(
+            items = userCoupons,
+            page = pagingOptions.page,
+            size = pagingOptions.size,
+            totalCount = 1
+        )
 
-        When("사용자에게 발급된 쿠폰이 있으면") {
-            beforeTest {
-                val userCoupons = listOf(
-                    UserCoupon(
-                        id = 1L,
-                        userId = userId,
-                        couponId = 1L,
-                        couponName = "신규가입쿠폰",
-                        discount = 2000L,
-                        status = UserCouponStatus.ACTIVE,
-                        issuedAt = fixedTime,
-                        usedAt = null,
-                        validUntil = fixedTime.plusDays(30)
-                    )
-                )
-                every { couponService.readUserCoupons(userId) } returns userCoupons
+        // When & Then
+        val response = restClient.get()
+            .uri {
+                it.path(getMyCouponsEndpoint)
+                    .queryParam("page", pagingOptions.page)
+                    .queryParam("size", pagingOptions.size)
+                    .build()
             }
+            .header("userId", userId.toString())
+            .retrieve()
+            .toEntity(GetMyCouponsResponse::class.java)
 
-            Then("200 OK와 쿠폰 정보를 반환한다") {
-                webTestClient.get()
-                    .uri(endpoint)
-                    .header("userId", userId.toString())
-                    .exchange()
-                    .expectStatus().isOk
-                    .expectHeader().contentType(MediaType.APPLICATION_JSON)
-                    .expectBody()
-                    .jsonPath("$.coupons").isArray
-                    .jsonPath("$.coupons[0].userCouponId").isEqualTo(1)
-                    .jsonPath("$.coupons[0].couponName").isEqualTo("신규가입쿠폰")
-                    .jsonPath("$.coupons[0].discountAmount").isEqualTo(2000)
-                    .jsonPath("$.coupons[0].isUsable").isEqualTo(true)
+        response.statusCode shouldBe HttpStatus.OK
+        response.body.let { body ->
+            body shouldNotBe null
+            body?.run {
+                coupons.size shouldBe 1
+                coupons[0].userCouponId shouldBe 1L
+                coupons[0].couponName shouldBe "신규가입쿠폰"
+                coupons[0].discountAmount shouldBe 2000L
+                coupons[0].isUsable shouldBe true
             }
         }
 
-        When("사용자에게 발급된 쿠폰이 하나도 없으면") {
-            beforeTest {
-                every { couponService.readUserCoupons(userId) } returns emptyList()
-            }
-
-            Then("200 OK와 빈 리스트를 반환한다") {
-                webTestClient.get()
-                    .uri(endpoint)
-                    .header("userId", userId.toString())
-                    .exchange()
-                    .expectStatus().isOk
-                    .expectHeader().contentType(MediaType.APPLICATION_JSON)
-                    .expectBody()
-                    .jsonPath("$.coupons").isArray
-                    .jsonPath("$.coupons").isEmpty
-            }
+        coVerify(exactly = 1) {
+            findPagedUserCouponsUsecase.findPagedUserCoupons(userId, any())
         }
     }
 
-    Given("POST /api/v1/coupon/{couponId} 쿠폰 발급 요청이 들어올 때") {
+    @Test
+    @DisplayName("쿠폰이 없는 사용자의 목록 조회 요청 - 빈 목록이 성공적으로 반환된다")
+    fun getMyCoupons_UserWithoutCoupons_ReturnsEmptyList() {
+        // Given
+        val userId = 1L
+        val pagingOptions = PagingOptions(0, 10)
+        
+        every { findPagedUserCouponsUsecase.findPagedUserCoupons(userId, any()) } returns PagedList(
+            items = emptyList(),
+            page = pagingOptions.page,
+            size = pagingOptions.size,
+            totalCount = 0
+        )
+
+        // When & Then
+        val response = restClient.get()
+            .uri {
+                it.path(getMyCouponsEndpoint)
+                    .queryParam("page", pagingOptions.page)
+                    .queryParam("size", pagingOptions.size)
+                    .build()
+            }
+            .header("userId", userId.toString())
+            .retrieve()
+            .toEntity(GetMyCouponsResponse::class.java)
+
+        response.statusCode shouldBe HttpStatus.OK
+        response.body.let { body ->
+            body shouldNotBe null
+            body?.run {
+                coupons.isEmpty() shouldBe true
+                totalCount shouldBe 0
+            }
+        }
+
+        coVerify(exactly = 1) {
+            findPagedUserCouponsUsecase.findPagedUserCoupons(userId, any())
+        }
+    }
+
+    @Test
+    @DisplayName("정상적인 쿠폰 발급 요청 - 쿠폰이 성공적으로 발급되고 201 Created를 반환한다")
+    fun issueCoupon_ValidRequest_ReturnsSuccessResponse() {
+        // Given
         val userId = 1L
         val couponId = 1L
-        val endpoint = "/api/v1/coupon/$couponId"
+        val issuedCoupon = UserCoupon(
+            id = 1L,
+            userId = userId,
+            couponId = couponId,
+            couponName = "신규가입쿠폰",
+            discount = 2000L,
+            status = UserCouponStatus.ACTIVE,
+            issuedAt = fixedTime,
+            usedAt = null,
+            validUntil = fixedTime.plusDays(30)
+        )
 
-        When("정상적인 쿠폰 발급 요청이면") {
-            beforeTest {
-                val issuedCoupon = UserCoupon(
-                    id = 1L,
-                    userId = userId,
-                    couponId = couponId,
-                    couponName = "신규가입쿠폰",
-                    discount = 2000L,
-                    status = UserCouponStatus.ACTIVE,
-                    issuedAt = fixedTime,
-                    usedAt = null,
-                    validUntil = fixedTime.plusDays(30)
-                )
-                coEvery { couponService.issueCoupon(userId, couponId) } returns issuedCoupon
-            }
+        coEvery { issueCouponUsecase.issueCoupon(userId, couponId) } returns issuedCoupon
 
-            Then("200 OK와 발급된 쿠폰 정보를 반환한다") {
-                webTestClient.post()
-                    .uri(endpoint)
-                    .header("userId", userId.toString())
-                    .exchange()
-                    .expectStatus().isOk
-                    .expectHeader().contentType(MediaType.APPLICATION_JSON)
-                    .expectBody()
-                    .jsonPath("$.couponId").isEqualTo(1)
-                    .jsonPath("$.couponName").isEqualTo("신규가입쿠폰")
-                    .jsonPath("$.discountAmount").isEqualTo(2000)
-                    .jsonPath("$.issuedAt").exists()
-                    .jsonPath("$.validUntil").exists()
-            }
-        }
+        // When & Then
+        val response = restClient.post()
+            .uri("$issueCouponEndpoint/$couponId")
+            .header("userId", userId.toString())
+            .retrieve()
+            .toEntity(PostCouponIssueResponse::class.java)
 
-        When("중복 발급으로 실패하면") {
-            beforeTest {
-                coEvery { couponService.issueCoupon(userId, couponId) } throws
-                        BusinessConflictException("이미 발급받은 쿠폰입니다.")
-            }
-
-            Then("409 Conflict를 반환한다") {
-                webTestClient.post()
-                    .uri(endpoint)
-                    .header("userId", userId.toString())
-                    .exchange()
-                    .expectStatus().isEqualTo(409)
+        response.statusCode shouldBe HttpStatus.CREATED
+        response.body.let { body ->
+            body shouldNotBe null
+            body?.run {
+                couponId shouldBe 1L
+                couponName shouldBe "신규가입쿠폰"
+                discountAmount shouldBe 2000L
+                issuedAt shouldNotBe null
+                validUntil shouldNotBe null
             }
         }
 
-        When("쿠폰 재고 부족으로 실패하면") {
-            beforeTest {
-                coEvery { couponService.issueCoupon(userId, couponId) } throws
-                        BusinessUnacceptableException("쿠폰 재고가 부족합니다.")
-            }
-
-            Then("422 Unprocessable Entity를 반환한다") {
-                webTestClient.post()
-                    .uri(endpoint)
-                    .header("userId", userId.toString())
-                    .exchange()
-                    .expectStatus().isEqualTo(422)
-            }
+        coVerify(exactly = 1) {
+            issueCouponUsecase.issueCoupon(userId, couponId)
         }
     }
 
-    Given("API 응답 구조를 검증할 때") {
-        When("쿠폰 목록 응답을 파싱하면") {
-            val userId = 1L
-            
-            beforeTest {
-                val userCoupons = listOf(
-                    UserCoupon(
-                        id = 1L,
-                        userId = userId,
-                        couponId = 1L,
-                        couponName = "테스트쿠폰",
-                        discount = 1000L,
-                        status = UserCouponStatus.ACTIVE,
-                        issuedAt = fixedTime,
-                        usedAt = null,
-                        validUntil = fixedTime.plusDays(7)
-                    )
-                )
-                every { couponService.readUserCoupons(userId) } returns userCoupons
-            }
+    @Test
+    @DisplayName("중복 쿠폰 발급 요청 - 409 Conflict 오류를 반환한다")
+    fun issueCoupon_DuplicateIssue_Returns409Error() {
+        // Given
+        val userId = 1L
+        val couponId = 1L
 
-            Then("응답 구조가 올바르다") {
-                val responseBody = webTestClient.get()
-                    .uri("/api/v1/mycoupons")
-                    .header("userId", userId.toString())
-                    .exchange()
-                    .expectStatus().isOk
-                    .expectHeader().contentType(MediaType.APPLICATION_JSON)
-                    .expectBody<String>()
-                    .returnResult()
-                    .responseBody
+        coEvery { issueCouponUsecase.issueCoupon(userId, couponId) } throws 
+            BusinessConflictException("이미 발급받은 쿠폰입니다.")
 
-                responseBody?.let { content ->
-                    println("파싱 테스트 응답: $content")
-                    val response = objectMapper.readValue(content, Map::class.java)
-                    response.containsKey("coupons") shouldBe true
+        // When & Then
+        try {
+            restClient.post()
+                .uri("$issueCouponEndpoint/$couponId")
+                .header("userId", userId.toString())
+                .retrieve()
+                .toEntity(PostCouponIssueResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.CONFLICT
+            e.responseBodyAsString.contains("이미 발급받은 쿠폰입니다.") shouldBe true
+        }
+    }
+
+    @Test
+    @DisplayName("쿠폰 재고 부족으로 발급 실패 - 422 Unprocessable Entity 오류를 반환한다")
+    fun issueCoupon_InsufficientStock_Returns422Error() {
+        // Given
+        val userId = 1L
+        val couponId = 1L
+
+        coEvery { issueCouponUsecase.issueCoupon(userId, couponId) } throws 
+            BusinessUnacceptableException("쿠폰 재고가 부족합니다.")
+
+        // When & Then
+        try {
+            restClient.post()
+                .uri("$issueCouponEndpoint/$couponId")
+                .header("userId", userId.toString())
+                .retrieve()
+                .toEntity(PostCouponIssueResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.UNPROCESSABLE_ENTITY
+            e.responseBodyAsString.contains("쿠폰 재고가 부족합니다.") shouldBe true
+        }
+    }
+
+    @Test
+    @DisplayName("userId 헤더가 누락된 쿠폰 목록 조회 - 400 Bad Request를 반환한다")
+    fun getMyCoupons_MissingUserIdHeader_Returns400Error() {
+        // When & Then
+        try {
+            restClient.get()
+                .uri {
+                    it.path(getMyCouponsEndpoint)
+                        .queryParam("page", pagingOptions.page)
+                        .queryParam("size", pagingOptions.size)
+                        .build()
                 }
-            }
+                .retrieve()
+                .toEntity(GetMyCouponsResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.BAD_REQUEST
         }
     }
-})
+
+    @Test
+    @DisplayName("userId 헤더가 누락된 쿠폰 발급 요청 - 400 Bad Request를 반환한다")
+    fun issueCoupon_MissingUserIdHeader_Returns400Error() {
+        // Given
+        val couponId = 1L
+
+        // When & Then
+        try {
+            restClient.post()
+                .uri("$issueCouponEndpoint/$couponId")
+                .retrieve()
+                .toEntity(PostCouponIssueResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.BAD_REQUEST
+        }
+    }
+
+    @Test
+    @DisplayName("시스템 오류로 쿠폰 목록 조회 실패 - 500 Internal Server Error를 반환한다")
+    fun getMyCoupons_SystemError_Returns500Error() {
+        // Given
+        val userId = 1L
+
+        every { findPagedUserCouponsUsecase.findPagedUserCoupons(userId, any()) } throws 
+            RuntimeException("시스템 오류가 발생했습니다.")
+
+        // When & Then
+        try {
+            restClient.get()
+                .uri {
+                    it.path(getMyCouponsEndpoint)
+                        .queryParam("page", pagingOptions.page)
+                        .queryParam("size", pagingOptions.size)
+                        .build()
+                }
+                .header("userId", userId.toString())
+                .retrieve()
+                .toEntity(GetMyCouponsResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.INTERNAL_SERVER_ERROR
+        }
+    }
+
+    @Test
+    @DisplayName("시스템 오류로 쿠폰 발급 실패 - 500 Internal Server Error를 반환한다")
+    fun issueCoupon_SystemError_Returns500Error() {
+        // Given
+        val userId = 1L
+        val couponId = 1L
+
+        coEvery { issueCouponUsecase.issueCoupon(userId, couponId) } throws 
+            RuntimeException("시스템 오류가 발생했습니다.")
+
+        // When & Then
+        try {
+            restClient.post()
+                .uri("$issueCouponEndpoint/$couponId")
+                .header("userId", userId.toString())
+                .retrieve()
+                .toEntity(PostCouponIssueResponse::class.java)
+        } catch (e: RestClientResponseException) {
+            e.statusCode shouldBe HttpStatus.INTERNAL_SERVER_ERROR
+        }
+    }
+}

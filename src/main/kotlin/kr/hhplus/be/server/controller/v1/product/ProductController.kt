@@ -1,6 +1,7 @@
 package kr.hhplus.be.server.controller.v1.product
 
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import kr.hhplus.be.server.controller.dto.request.PagingOptionsRequestParam
 import kr.hhplus.be.server.controller.v1.product.response.GetProductsPopularResponse
 import kr.hhplus.be.server.controller.v1.product.response.GetProductsResponse
@@ -25,7 +26,7 @@ class ProductController (
 
     @GetMapping("")
     override fun getProducts(
-        @ParameterObject pagingOptions: PagingOptionsRequestParam
+        @ParameterObject @Valid pagingOptions: PagingOptionsRequestParam
     ): ResponseEntity<GetProductsResponse> {
         val products: PagedList<Product> = findAllProductsUsecase.findPagedProducts(pagingOptions.toPagingOptions());
 
@@ -36,7 +37,7 @@ class ProductController (
 
     @GetMapping("/popular")
     override fun getPopularProducts(
-        @ParameterObject pagingOptions: PagingOptionsRequestParam
+        @ParameterObject @Valid pagingOptions: PagingOptionsRequestParam
     ): ResponseEntity<GetProductsPopularResponse> {
         val popularProducts: PagedList<ProductSaleSummary> = findAllPopularProductsUsecase.findPagedPopularProducts(pagingOptions.toPagingOptions())
 
