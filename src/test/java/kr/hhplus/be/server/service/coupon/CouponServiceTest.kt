@@ -209,27 +209,26 @@ class CouponServiceTest : ServiceTestBase() {
 
         @Test
         @DisplayName("쿠폰 발급 실패 시 CompensationScope가 롤백을 처리한다")
-        fun rollsBackOnIssueCouponFailure() = runTest {
+        fun rollsBackWhenIssueCouponFails() = runTest {
             // given
             val userId = 1L
             val couponId = 1L
-            val issuedUserCoupon = UserCoupon(
-                id = 1L, userId = userId, couponId = couponId, couponName = "신규가입쿠폰", discount = 2000L,
-                status = UserCouponStatus.ACTIVE, issuedAt = fixedTime, usedAt = null, validUntil = fixedTime.plusDays(30)
-            )
+            val testException = RuntimeException("쿠폰 발급 실패")
 
             coEvery { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
             coEvery { couponPort.existsCoupon(couponId = any()) } returns true
-            coEvery { couponPort.issueCoupon(userId, couponId, any()) } returns issuedUserCoupon
-            // 실패 상황을 시뮬레이션하기 위해 예외를 발생시킬 수는 없지만,
-            // 정상 케이스를 통해 CompensationScope의 구조를 검증
+            // 쿠폰 발급 자체에서 예외 발생
+            coEvery { couponPort.issueCoupon(userId, couponId, any()) } throws testException
+            coEvery { couponPort.revokeCoupon(issuedUserCoupon = any(), now = any()) } just Runs
 
-            // when
-            val result: UserCoupon = couponService.issueCoupon(userId, couponId)
+            // when & then
+            shouldThrow<RuntimeException> {
+                couponService.issueCoupon(userId, couponId)
+            }
 
-            // then
-            result shouldBe issuedUserCoupon
+            // 발급이 실패했으므로 롤백도 호출되지 않음
             coVerify { couponPort.issueCoupon(userId, couponId, any()) }
+            coVerify(exactly = 0) { couponPort.revokeCoupon(any(), any()) }
         }
     }
 
