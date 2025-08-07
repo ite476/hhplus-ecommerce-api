@@ -56,6 +56,9 @@ dependencies {
 	runtimeOnly("com.mysql:mysql-connector-j")
 	implementation("p6spy:p6spy:3.9.1")
 
+	// Validation
+	implementation("org.springframework.boot:spring-boot-starter-validation")
+	
 	// Test
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-webflux") // WebTestClient 지원
