@@ -58,7 +58,10 @@ dependencies {
 
 	// Validation
 	implementation("org.springframework.boot:spring-boot-starter-validation")
-	
+
+	// Redis (Redisson)
+	implementation("org.redisson:redisson:3.27.2")
+
 	// Test
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-webflux") // WebTestClient 지원
