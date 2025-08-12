@@ -12,6 +12,21 @@ services:
     volumes:
       - ./data/mysql/:/var/lib/mysql
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "redis_pwd"]
+    environment:
+      - TZ=Asia/Seoul
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_pwd", "PING"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
 networks:
   default:
     driver: bridge
