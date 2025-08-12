@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: hhplus-test
+  jpa:
+    open-in-view: false
+    generate-ddl: false
+    show-sql: false  # 테스트에서 SQL 로그 비활성화
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate.timezone.default_storage: NORMALIZE_UTC
+      hibernate.jdbc.time_zone: UTC
+      hibernate.format_sql: false  # 포맷팅도 비활성화
+      hibernate.use_sql_comments: false
+      hibernate.show_sql: false
+
+# 테스트용 로깅 설정 - 최소화
+logging:
+  level:
+    root: WARN  # 기본 로그 레벨을 WARN으로 설정
+    kr.hhplus.be.server: INFO  # 우리 애플리케이션만 INFO
+    # 모든 SQL 로깅 비활성화
+    com.querydsl.sql: WARN
+    com.querydsl.jpa: WARN
+    p6spy: OFF  # p6spy 완전 비활성화
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    com.zaxxer.hikari: WARN
+    org.springframework.transaction: WARN
+    org.springframework.web: WARN
+    org.springframework.test: WARN
+    org.testcontainers: WARN
+
+# p6spy 비활성화
+decorator:
+  datasource:
+    p6spy:
+      enable-logging: false  # 테스트에서 p6spy 비활성화
+
+# Swagger 문서 비활성화 (테스트에서 불필요)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

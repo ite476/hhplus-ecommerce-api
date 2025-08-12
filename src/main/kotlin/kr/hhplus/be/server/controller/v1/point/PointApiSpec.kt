@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.ExampleObject
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
+import jakarta.validation.Valid
 import kr.hhplus.be.server.controller.v1.point.request.PatchPointChargeRequestBody
 import kr.hhplus.be.server.controller.v1.point.response.GetPointResponse
 import org.springframework.http.ResponseEntity
@@ -35,7 +36,7 @@ interface PointApiSpec {
     )
     fun chargePoint(
         @RequestHeader userId: Long,
-        @RequestBody body: PatchPointChargeRequestBody
+        @RequestBody @Valid body: PatchPointChargeRequestBody
     ) : ResponseEntity<Object>
 
     @Operation(

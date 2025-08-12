@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.context.annotation.Import
-import org.springframework.test.context.TestPropertySource
+import org.springframework.test.context.ActiveProfiles
 import org.testcontainers.junit.jupiter.Testcontainers
 
 /**
@@ -23,13 +23,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 @Testcontainers
 @Import(TestcontainersConfiguration::class, JpaConfig::class)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@TestPropertySource(properties = [
-    "spring.jpa.hibernate.ddl-auto=create-drop",
-    "spring.jpa.show-sql=true",
-    "spring.jpa.properties.hibernate.format_sql=true",
-    "logging.level.org.hibernate.SQL=DEBUG",
-    "logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE"
-])
+@ActiveProfiles("test")
 class TestcontainersIntegrationTest {
 
     @Autowired

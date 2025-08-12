@@ -18,7 +18,9 @@ import kr.hhplus.be.server.service.pagination.PagedList
 import kr.hhplus.be.server.service.pagination.PagingOptions
 import kr.hhplus.be.server.service.user.exception.UserNotFoundException
 import kr.hhplus.be.server.util.unwrapOrThrow
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 import java.time.ZonedDateTime
 
 @Component
@@ -74,33 +76,49 @@ class CouponAdapter(
         return userCouponEntities
     }
 
+    @Transactional
     override fun issueCoupon(userId: Long, couponId: Long, now: ZonedDateTime): UserCoupon {
-        // 유저 조회
+        // 1. 유저 조회
         val userEntity = userRepository.findById(userId)
             .unwrapOrThrow { UserNotFoundException() }
 
-        // 쿠폰 조회 및 차감 처리
+        // 2. 쿠폰 원자적 증가 (동시성 안전)
+        val updateCount = couponRepository.incrementIssuedQuantityIfAvailable(couponId)
+        
+        if (updateCount == 0) {
+            // 쿠폰 발급 실패 - 수량 부족이거나 만료됨
+            val couponEntity = couponRepository.findById(couponId)
+                .unwrapOrThrow { CouponNotFoundException() }
+            
+            when {
+                couponEntity.isSoldOut() -> throw IllegalStateException("쿠폰이 모두 발급되었습니다")
+                couponEntity.isExpired() -> throw IllegalStateException("만료된 쿠폰입니다")
+                else -> throw IllegalStateException("쿠폰 발급에 실패했습니다")
+            }
+        }
+
+        // 3. 업데이트된 쿠폰 정보 조회
         val couponEntity = couponRepository.findById(couponId)
             .unwrapOrThrow { CouponNotFoundException() }
-            .run {
-                issuedQuantity += 1
-                couponRepository.save(this)
-            }
 
-        // UserCouponEntity 생성
+        // 4. UserCouponEntity 생성 (중복 발급 방지 제약조건 적용)
         val userCouponEntity = UserCouponEntity(
             user = userEntity,
             coupon = couponEntity,
             status = UserCouponStatus.ACTIVE,
             issuedAt = now,
-            expiredAt = couponEntity.expiredAt // 쿠폰 엔티티가 가진 만료일시 그대로
+            expiredAt = couponEntity.expiredAt
         )
 
-        // 저장
-        val saved = userCouponRepository.save(userCouponEntity)
-
-        // 도메인으로 변환
-        return saved.toDomain()
+        try {
+            // 5. 저장 (Unique 제약조건으로 중복 발급 방지)
+            val saved = userCouponRepository.save(userCouponEntity)
+            return saved.toDomain()
+            
+        } catch (e: DataIntegrityViolationException) {
+            // 중복 발급 시도 - 이미 발급된 쿠폰을 다시 발급하려고 시도
+            throw IllegalStateException("이미 발급받은 쿠폰입니다", e)
+        }
     }
 
     override fun revokeCoupon(issuedUserCoupon: UserCoupon, now: ZonedDateTime) {
