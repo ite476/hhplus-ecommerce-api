@@ -4,13 +4,9 @@ spring:
   profiles:
     active: local
   datasource:
-    name: HangHaePlusDataSource
-    type: com.zaxxer.hikari.HikariDataSource
-    hikari:
-      maximum-pool-size: 3
-      connection-timeout: 10000
-      max-lifetime: 60000
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:23306/hhplus?characterEncoding=UTF-8&serverTimezone=UTC
+    username: application
+    password: application
   jpa:
     open-in-view: false
     generate-ddl: false
@@ -23,6 +19,10 @@ spring:
       hibernate.format_sql: true
       hibernate.use_sql_comments: true
       hibernate.show_sql: true
+  redis:
+    host: localhost
+    port: 6379
+    password: redis_pwd
 
 # 성능 분석용 로깅 설정
 logging:
@@ -50,12 +50,3 @@ decorator:
   datasource:
     p6spy:
       enable-logging: true
-
----
-spring.config.activate.on-profile: local, test
-
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/hhplus?characterEncoding=UTF-8&serverTimezone=UTC
-    username: application
-    password: application
