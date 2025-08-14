@@ -51,7 +51,8 @@ dependencies {
 	kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
-
+	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+	implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 	// DB
 	runtimeOnly("com.mysql:mysql-connector-j")
 	implementation("p6spy:p6spy:3.9.1")
