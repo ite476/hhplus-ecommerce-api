@@ -2,15 +2,15 @@ package kr.hhplus.be.server.service.order
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
+import io.mockk.*
 import io.mockk.impl.annotations.MockK
-import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import kr.hhplus.be.server.service.ServiceTestBase
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
 import kr.hhplus.be.server.service.coupon.entity.UserCouponStatus
+import kr.hhplus.be.server.service.lock.AsyncLockClient
+import kr.hhplus.be.server.service.lock.LockHandle
+import kr.hhplus.be.server.service.lock.LockOptions
 import kr.hhplus.be.server.service.order.entity.Order
 import kr.hhplus.be.server.service.order.entity.OrderItem
 import kr.hhplus.be.server.service.order.port.DataPlatformPort
@@ -36,7 +36,10 @@ class OrderServiceTest : ServiceTestBase() {
     
     @MockK
     private lateinit var dataPlatformPort: DataPlatformPort
-    
+
+    @MockK
+    private lateinit var lockClient: AsyncLockClient
+
     private lateinit var orderService: OrderService
 
 
@@ -44,10 +47,19 @@ class OrderServiceTest : ServiceTestBase() {
     @BeforeEach
     fun setupOrderService() {
         super.setUp()
+
+        coEvery { lockClient.tryAcquire(any(), any()) } answers {
+            val key = firstArg<String>() // 첫 번째 인자
+            val options = secondArg<LockOptions>() // 두 번째 인자
+            LockHandle(key, "mock-token") // 반환할 LockHandle
+        }
+        coEvery { lockClient.release(any()) } just Runs
+
         orderService = OrderService(
             facade = orderServiceFacade,
             orderPort = orderPort,
             dataPlatformPort = dataPlatformPort,
+            lockClient = lockClient,
             timeProvider = timeProvider
         )
     }
