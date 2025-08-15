@@ -6,7 +6,8 @@ INSERT INTO hhplus.coupon
     discount,
     created_at,
     expired_at,
-    updated_at
+    updated_at,
+    `version`
 )
 SELECT
     CONCAT('테스트쿠폰_', t.n) AS name,
@@ -15,7 +16,8 @@ SELECT
     500 + (t.n * 100) AS discount,          -- 500, 600, ..., 1400 (샘플)
     NOW(6) AS created_at,
     DATE_ADD(NOW(6), INTERVAL 30 DAY) AS expired_at,  -- 30일 뒤 만료
-    NOW(6) AS updated_at
+    NOW(6) AS updated_at,
+    0 AS `version`
 FROM (
     SELECT 1 AS n UNION ALL
     SELECT 2 UNION ALL

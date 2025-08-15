@@ -1,9 +1,10 @@
-INSERT INTO hhplus.`user` (name, `point`, created_at, updated_at)
+INSERT INTO hhplus.`user` (name, `point`, created_at, updated_at, `version`)
 SELECT
     CONCAT('테스트회원_', t.n) AS name,
     5000 + (t.n % 5000) AS point,
     NOW(6) AS created_at,
-    NOW(6) AS updated_at
+    NOW(6) AS updated_at,
+    0 AS `version`
 FROM (
     SELECT @row := @row + 1 AS n
     FROM (
