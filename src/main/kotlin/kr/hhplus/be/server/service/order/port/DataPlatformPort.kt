@@ -4,4 +4,5 @@ import kr.hhplus.be.server.service.order.entity.Order
 
 interface DataPlatformPort {
     suspend fun sendOrderData(order: Order)
+    suspend fun revertOrderData(order: Order)
 }
