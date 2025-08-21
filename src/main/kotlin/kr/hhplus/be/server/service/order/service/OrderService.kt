@@ -1,6 +1,9 @@
 package kr.hhplus.be.server.service.order.service
 
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
+import kr.hhplus.be.server.service.lock.AsyncLockClient
+import kr.hhplus.be.server.service.lock.LockScope
+import kr.hhplus.be.server.service.lock.LockUtils
 import kr.hhplus.be.server.service.order.entity.Order
 import kr.hhplus.be.server.service.order.entity.OrderItem
 import kr.hhplus.be.server.service.order.port.DataPlatformPort
@@ -19,6 +22,7 @@ class OrderService(
     val facade: OrderServiceFacade,
     val orderPort: OrderPort,
     val dataPlatformPort: DataPlatformPort,
+    val lockClient: AsyncLockClient,
     val timeProvider: KoreanTimeProvider
 ) : CreateOrderUsecase {
     /**
@@ -85,61 +89,72 @@ class OrderService(
     private suspend fun CompensationScope.createOrder(
         context: OrderCreationContext
     ) : Order {
-        // 각 상품 별 재고 차감
-        context.productSales.forEach { sale ->
-            val product: Product = sale.product
-            val productId: Long = product.requiresId()
-
-            val quantity: Long = sale.soldCount
-            val now: ZonedDateTime = context.now
-
-            execute {
-                facade.reduceProductStock(productId = productId, quantity = quantity, now = now)
-            }.compensate {
-                facade.addProductStock(productId = productId, quantity = quantity, now = now)
+        // 임계 영역에만 락 처리 - LockUtils 사용으로 일관성 확보
+        val createdOrder = LockScope.withLocks(
+            lockClient, 
+            context.productSales.map { LockUtils.productLockKey(it.product.requiresId()) }
+        ) {
+            // 각 상품 별 재고 차감
+            context.productSales.forEach { sale ->
+                val product: Product = sale.product
+                val productId: Long = product.requiresId()
+    
+                val quantity: Long = sale.soldCount
+                val now: ZonedDateTime = context.now
+    
+                execute {
+                    facade.reduceProductStock(productId = productId, quantity = quantity, now = now)
+                }.compensate {
+                    facade.addProductStock(productId = productId, quantity = quantity, now = now)
+                }
             }
-        }
-
-        // 쿠폰 사용 시 쿠폰 차감
-        context.usedCoupon?.let { userCoupon ->
-            val now: ZonedDateTime = context.now
-
-            execute {
-                facade.useUserCoupon(userCoupon = userCoupon, now = now)
-            }.compensate {
-                facade.rollbackUserCouponUsage(userCoupon = userCoupon, now = now)
+    
+            // 쿠폰 사용 시 쿠폰 차감
+            context.usedCoupon?.let { userCoupon ->
+                val now: ZonedDateTime = context.now
+    
+                execute {
+                    facade.useUserCoupon(userCoupon = userCoupon, now = now)
+                }.compensate {
+                    facade.rollbackUserCouponUsage(userCoupon = userCoupon, now = now)
+                }
             }
-        }
+    
+            // 총 금액 계산
+            val totalPrice: Long = run {
+                val productsPrice: Long = context.orderItems.sumOf { it.totalPrice }
+                val discountedPrice: Long = (context.usedCoupon?.discount ?: 0L)
+    
+                productsPrice - discountedPrice
+            }
+    
+            // 포인트 차감 처리
+            val userId: Long = context.user.requiresId()
+    
+            execute {
+                facade.usePoint(userId = userId, point = totalPrice)
+            }.compensate {
+                facade.chargePoint(userId = userId, point = totalPrice)
+            }
+    
+            // 주문 생성
+            val order: Order = execute {
+                orderPort.createOrder(user = context.user, userCouponId = context.usedCoupon?.id, productsStamp = context.productSales, now = context.now)
+            }.compensateBy { order ->
+                orderPort.cancelOrder(order = order)
+            }
 
-        // 총 금액 계산
-        val totalPrice: Long = run {
-            val productsPrice: Long = context.orderItems.sumOf { it.totalPrice }
-            val discountedPrice: Long = (context.usedCoupon?.discount ?: 0L)
-
-            productsPrice - discountedPrice
-        }
-
-        // 포인트 차감 처리
-        val userId: Long = context.user.requiresId()
-
-        execute {
-            facade.usePoint(userId = userId, point = totalPrice)
-        }.compensate {
-            facade.chargePoint(userId = userId, point = totalPrice)
-        }
-
-        // 주문 생성
-        val order: Order = execute {
-            orderPort.createOrder(user = context.user, userCouponId = context.usedCoupon?.id, productsStamp = context.productSales, now = context.now)
-        }.compensateBy { order ->
-            orderPort.cancelOrder(order = order)
+            order
         }
 
         // 주문 정보를 외부 데이터 플랫폼으로 전송
         execute {
-            dataPlatformPort.sendOrderData(order)
+            dataPlatformPort.sendOrderData(createdOrder)
+        }.compensate {
+            // TODO: 외부 플랫폼 전송 실패 시 보상 로직 추가 필요
+            // 주문 상태를 "전송 실패"로 마킹하는 등의 처리 
         }
 
-        return order
+        return createdOrder
     }
 }

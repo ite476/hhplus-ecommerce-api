@@ -1,6 +1,13 @@
 spring:
   application:
     name: hhplus-test
+  profiles:
+    active: test
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password:
   jpa:
     open-in-view: false
     generate-ddl: false
@@ -13,6 +20,9 @@ spring:
       hibernate.format_sql: false  # 포맷팅도 비활성화
       hibernate.use_sql_comments: false
       hibernate.show_sql: false
+  # 테스트에서 Redis 비활성화
+  redis:
+    enabled: false
 
 # 테스트용 로깅 설정 - 최소화
 logging:
