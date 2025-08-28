@@ -151,8 +151,7 @@ class OrderService(
         execute {
             dataPlatformPort.sendOrderData(createdOrder)
         }.compensate {
-            // TODO: 외부 플랫폼 전송 실패 시 보상 로직 추가 필요
-            // 주문 상태를 "전송 실패"로 마킹하는 등의 처리 
+            dataPlatformPort.revertOrderData(createdOrder)
         }
 
         return createdOrder

@@ -2,6 +2,8 @@ package kr.hhplus.be.server.service.product
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.verify
@@ -10,6 +12,7 @@ import kr.hhplus.be.server.service.pagination.PagedList
 import kr.hhplus.be.server.service.product.entity.Product
 import kr.hhplus.be.server.service.product.entity.ProductSaleSummary
 import kr.hhplus.be.server.service.product.exception.LackOfProductStockException
+import kr.hhplus.be.server.service.product.port.PopularProductPort
 import kr.hhplus.be.server.service.product.port.ProductPort
 import kr.hhplus.be.server.service.product.service.ProductService
 import org.junit.jupiter.api.BeforeEach
@@ -23,13 +26,16 @@ class ProductServiceTest : ServiceTestBase() {
 
     @MockK
     private lateinit var productPort: ProductPort
-    
+
+    @MockK
+    private lateinit var popularProductPort: PopularProductPort
+
     private lateinit var productService: ProductService
 
     @BeforeEach
     fun setupProductService() {
         super.setUp()
-        productService = ProductService(productPort, timeProvider)
+        productService = ProductService(productPort, popularProductPort, timeProvider)
     }
 
     @Nested
@@ -121,8 +127,8 @@ class ProductServiceTest : ServiceTestBase() {
                     rank = 2, soldCount = 800, from = fixedTime.minusDays(3), until = fixedTime
                 )
             )
-            every { 
-                productPort.findPagedPopularProducts(
+            coEvery {
+                popularProductPort.findPagedPopularProducts(
                     whenSearch = fixedTime,
                     searchPeriod = Duration.ofDays(3),
                     pagingOptions = pagingOptions
@@ -139,8 +145,8 @@ class ProductServiceTest : ServiceTestBase() {
 
             // then
             result shouldBe expectedProducts
-            verify { 
-                productPort.findPagedPopularProducts(
+            coVerify {
+                popularProductPort.findPagedPopularProducts(
                     whenSearch = fixedTime,
                     searchPeriod = Duration.ofDays(3),
                     pagingOptions = any()

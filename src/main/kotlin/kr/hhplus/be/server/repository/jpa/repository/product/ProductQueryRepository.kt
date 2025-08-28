@@ -12,4 +12,9 @@ interface ProductQueryRepository {
         searchUntil: ZonedDateTime,
         pageable: Pageable
     ): Page<ProductSaleSummary>
+
+    fun findPopularProductsByDate(
+        searchFrom: ZonedDateTime,
+        searchUntil: ZonedDateTime
+    ): List<Pair<ZonedDateTime, List<ProductSaleSummary>>>
 }

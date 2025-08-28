@@ -1,5 +1,9 @@
 package kr.hhplus.be.server.service.lock
 
+import java.time.LocalDate
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+
 /**
  * 락 관련 유틸리티 함수들
  */
@@ -46,4 +50,23 @@ object LockUtils {
      */
     fun compositeLockKey(prefix: String, vararg ids: Any): String = 
         "$prefix:${ids.joinToString(":")}"
+
+    /**
+     *  DateTimeFormatter 한계로 인해 ISO_LOCAL_DATE 처리 (TimeZoneFree)
+     *  SMELL: 추후 타임존 고려한 키 설계로 변경할 필요 있음
+     */
+    fun lockKeyWithDate(prefix: String, date: ZonedDateTime): String =
+        "$prefix:${date.format(/* formatter = */ DateTimeFormatter.ISO_LOCAL_DATE)}"
+
+    /**
+     *  DateTimeFormatter 한계로 인해 ISO_LOCAL_DATE 처리 (TimeZoneFree)
+     *  SMELL: 추후 타임존 고려한 키 설계로 변경할 필요 있음
+     */
+    fun lockKeyWithDate(prefix: String, date: LocalDate): String =
+        "$prefix:${date.format(/* formatter = */ DateTimeFormatter.ISO_LOCAL_DATE)}"
+
+    /**
+     *  캐시 워밍업 등을 위한 락인 경우 사용
+     */
+    fun lockKeyWithReady(prefix: String) = "$prefix:ready"
 }

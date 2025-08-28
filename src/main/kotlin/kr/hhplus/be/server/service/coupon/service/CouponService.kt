@@ -1,8 +1,9 @@
 package kr.hhplus.be.server.service.coupon.service
 
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
-import kr.hhplus.be.server.service.coupon.exception.CouponNotFoundException
-import kr.hhplus.be.server.service.coupon.exception.UserCouponNotFoundException
+import kr.hhplus.be.server.service.coupon.exception.*
+import kr.hhplus.be.server.service.coupon.port.CouponIssuancePort
+import kr.hhplus.be.server.service.coupon.port.CouponIssuanceResult
 import kr.hhplus.be.server.service.coupon.port.CouponPort
 import kr.hhplus.be.server.service.coupon.usecase.FindPagedUserCouponsUsecase
 import kr.hhplus.be.server.service.coupon.usecase.FindUserCouponByIdUsecase
@@ -19,6 +20,7 @@ import java.time.ZonedDateTime
 @Service
 class CouponService (
     val couponPort: CouponPort,
+    val couponIssuancePort: CouponIssuancePort,
     val requireUserIdExistsUsecase: RequiresUserIdExistsUsecase,
     val timeProvider: KoreanTimeProvider
     ) : FindUserCouponByIdUsecase,
@@ -64,6 +66,21 @@ class CouponService (
 
         val now = timeProvider.now()
 
+        // 쿠폰 발급 처리: 발급 결정
+        val firstTry: CouponIssuanceResult = couponIssuancePort.tryIssue(userId, couponId)
+        val decision: CouponIssuanceResult = if (firstTry == CouponIssuanceResult.NOT_READY) {
+            couponIssuancePort.ensureReady(couponId)
+            couponIssuancePort.tryIssue(userId, couponId)
+        } else firstTry
+
+        when (decision) {
+            CouponIssuanceResult.OK -> { /* proceed */ }
+            CouponIssuanceResult.ALREADY_ISSUED -> throw CouponAlreadyIssuedException()
+            CouponIssuanceResult.OUT_OF_STOCK -> throw CouponOutOfStockException()
+            CouponIssuanceResult.NOT_READY -> throw CouponNotReadyException()
+        }
+
+        // 영속성 발급 처리
         val issuedUserCoupon: UserCoupon = CompensationScope.runTransaction {
             execute {
                 couponPort.issueCoupon(userId, couponId, now)

@@ -1,13 +1,11 @@
 package kr.hhplus.be.server.service.product.service
 
 import kotlinx.coroutines.runBlocking
-import kr.hhplus.be.server.service.cache.CachePort
-import kr.hhplus.be.server.service.cache.cacheKey
-import kr.hhplus.be.server.service.cache.get
 import kr.hhplus.be.server.service.pagination.PagedList
 import kr.hhplus.be.server.service.pagination.PagingOptions
 import kr.hhplus.be.server.service.product.entity.Product
 import kr.hhplus.be.server.service.product.entity.ProductSaleSummary
+import kr.hhplus.be.server.service.product.port.PopularProductPort
 import kr.hhplus.be.server.service.product.port.ProductPort
 import kr.hhplus.be.server.service.product.usecase.*
 import kr.hhplus.be.server.util.KoreanTimeProvider
@@ -18,7 +16,7 @@ import java.time.ZonedDateTime
 @Service
 class ProductService(
     val productPort: ProductPort,
-    val cachePort: CachePort,
+    val popularProductPort: PopularProductPort,
     val timeProvider: KoreanTimeProvider
 ) : FindProductByIdUsecase,
     FindPagedProductsUsecase,
@@ -48,23 +46,14 @@ class ProductService(
         val now: ZonedDateTime = timeProvider.now();
         val searchPeriod: Duration =  Duration.ofDays(/* days = */ 3)
 
-        val cacheKey = cacheKey("popularProducts:${pagingOptions.page}:${pagingOptions.size}")
-
         val popularProductsPage: PagedList<ProductSaleSummary>
 
         runBlocking {
-            if (cachePort.exists(cacheKey)) {
-                popularProductsPage = cachePort.get<PagedList<ProductSaleSummary>>(cacheKey)!!
-            }
-            else{
-                popularProductsPage = productPort.findPagedPopularProducts(
-                    whenSearch = now,
-                    searchPeriod = searchPeriod,
-                    pagingOptions = pagingOptions
-                )
-
-                cachePort.set(cacheKey, popularProductsPage)
-            }
+            popularProductsPage =  popularProductPort.findPagedPopularProducts(
+                whenSearch = now,
+                searchPeriod = searchPeriod,
+                pagingOptions = pagingOptions
+            )
         }
 
         return popularProductsPage

@@ -8,8 +8,12 @@ import kotlinx.coroutines.test.runTest
 import kr.hhplus.be.server.service.ServiceTestBase
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
 import kr.hhplus.be.server.service.coupon.entity.UserCouponStatus
+import kr.hhplus.be.server.service.coupon.exception.CouponAlreadyIssuedException
+import kr.hhplus.be.server.service.coupon.exception.CouponOutOfStockException
 import kr.hhplus.be.server.service.coupon.exception.UserCouponCantBeUsedException
 import kr.hhplus.be.server.service.coupon.exception.UserCouponIsNotUsedButTriedToBeUnusedException
+import kr.hhplus.be.server.service.coupon.port.CouponIssuancePort
+import kr.hhplus.be.server.service.coupon.port.CouponIssuanceResult
 import kr.hhplus.be.server.service.coupon.port.CouponPort
 import kr.hhplus.be.server.service.coupon.service.CouponService
 import kr.hhplus.be.server.service.pagination.PagedList
@@ -34,6 +38,9 @@ class CouponServiceTest : ServiceTestBase() {
     @MockK
     private lateinit var requireUserIdExistsUsecase: RequiresUserIdExistsUsecase
 
+    @MockK
+    private lateinit var issuancePort: CouponIssuancePort
+
     private lateinit var couponService: CouponService
 
 
@@ -41,7 +48,12 @@ class CouponServiceTest : ServiceTestBase() {
     @BeforeEach
     fun setupCouponService() {
         super.setUp()
-        couponService = CouponService(couponPort, requireUserIdExistsUsecase, timeProvider)
+        couponService = CouponService(
+            couponPort = couponPort,
+            couponIssuancePort = issuancePort,
+            requireUserIdExistsUsecase = requireUserIdExistsUsecase,
+            timeProvider = timeProvider
+        )
     }
 
     @Nested
@@ -197,6 +209,7 @@ class CouponServiceTest : ServiceTestBase() {
 
             coEvery { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
             coEvery { couponPort.existsCoupon(couponId = any()) } returns true
+            coEvery { issuancePort.tryIssue(userId, couponId) } returns CouponIssuanceResult.OK
             coEvery { couponPort.issueCoupon(userId, couponId, any()) } returns expectedUserCoupon
 
             // when
@@ -217,6 +230,7 @@ class CouponServiceTest : ServiceTestBase() {
 
             coEvery { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
             coEvery { couponPort.existsCoupon(couponId = any()) } returns true
+            coEvery { issuancePort.tryIssue(userId, couponId) } returns CouponIssuanceResult.OK
             // 쿠폰 발급 자체에서 예외 발생
             coEvery { couponPort.issueCoupon(userId, couponId, any()) } throws testException
             coEvery { couponPort.revokeCoupon(issuedUserCoupon = any(), now = any()) } just Runs
@@ -229,6 +243,42 @@ class CouponServiceTest : ServiceTestBase() {
             // 발급이 실패했으므로 롤백도 호출되지 않음
             coVerify { couponPort.issueCoupon(userId, couponId, any()) }
             coVerify(exactly = 0) { couponPort.revokeCoupon(any(), any()) }
+        }
+
+        @Test
+        @DisplayName("이미 발급된 경우 예외를 던진다")
+        fun throwsWhenAlreadyIssued() = runTest {
+            // given
+            val userId = 1L
+            val couponId = 1L
+
+            coEvery { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
+            coEvery { couponPort.existsCoupon(couponId = any()) } returns true
+            coEvery { issuancePort.tryIssue(userId, couponId) } returns CouponIssuanceResult.ALREADY_ISSUED
+
+            // when & then
+            shouldThrow<CouponAlreadyIssuedException> {
+                couponService.issueCoupon(userId, couponId)
+            }
+            coVerify(exactly = 0) { couponPort.issueCoupon(any(), any(), any()) }
+        }
+
+        @Test
+        @DisplayName("재고가 없는 경우 예외를 던진다")
+        fun throwsWhenOutOfStock() = runTest {
+            // given
+            val userId = 1L
+            val couponId = 1L
+
+            coEvery { requireUserIdExistsUsecase.requireUserIdExists(userId = any()) } just Runs
+            coEvery { couponPort.existsCoupon(couponId = any()) } returns true
+            coEvery { issuancePort.tryIssue(userId, couponId) } returns CouponIssuanceResult.OUT_OF_STOCK
+
+            // when & then
+            shouldThrow<CouponOutOfStockException> {
+                couponService.issueCoupon(userId, couponId)
+            }
+            coVerify(exactly = 0) { couponPort.issueCoupon(any(), any(), any()) }
         }
     }
 
