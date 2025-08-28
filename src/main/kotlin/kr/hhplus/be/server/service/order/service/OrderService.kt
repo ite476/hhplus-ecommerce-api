@@ -10,6 +10,8 @@ import kr.hhplus.be.server.service.order.port.DataPlatformPort
 import kr.hhplus.be.server.service.order.port.OrderPort
 import kr.hhplus.be.server.service.order.usecase.CreateOrderUsecase
 import kr.hhplus.be.server.service.product.entity.Product
+import kr.hhplus.be.server.service.order.event.OrderCreated
+import org.springframework.context.ApplicationEventPublisher
 import kr.hhplus.be.server.service.product.entity.ProductSale
 import kr.hhplus.be.server.service.transaction.CompensationScope
 import kr.hhplus.be.server.service.user.entity.User
@@ -23,7 +25,8 @@ class OrderService(
     val orderPort: OrderPort,
     val dataPlatformPort: DataPlatformPort,
     val lockClient: AsyncLockClient,
-    val timeProvider: KoreanTimeProvider
+    val timeProvider: KoreanTimeProvider,
+    val eventPublisher: ApplicationEventPublisher
 ) : CreateOrderUsecase {
     /**
      * 주문 생성 Input
@@ -147,12 +150,7 @@ class OrderService(
             order
         }
 
-        // 주문 정보를 외부 데이터 플랫폼으로 전송
-        execute {
-            dataPlatformPort.sendOrderData(createdOrder)
-        }.compensate {
-            dataPlatformPort.revertOrderData(createdOrder)
-        }
+        eventPublisher.publishEvent(OrderCreated(order = createdOrder))
 
         return createdOrder
     }
