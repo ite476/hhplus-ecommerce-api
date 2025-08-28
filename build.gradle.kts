@@ -25,8 +25,23 @@ java {
 kotlin {
 	compilerOptions {
 		freeCompilerArgs.addAll("-Xjsr305=strict")
+		jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
 		jvmToolchain(17)
 	}
+}
+
+// 보수적으로 KotlinCompile 태스크에도 JVM 타겟을 명시
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
+// 레거시 옵션도 병행 설정 (일부 도구가 kotlinOptions 기반을 참조하는 경우 대비)
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().all {
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
 
 repositories {
