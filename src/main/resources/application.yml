@@ -56,6 +56,10 @@ logging:
     com.zaxxer.hikari: DEBUG
     # 트랜잭션 로깅
     org.springframework.transaction: DEBUG
+
+app:
+  idempotency:
+    event-ttl-seconds: 86400
 springdoc:
   api-docs:
     enabled: true
