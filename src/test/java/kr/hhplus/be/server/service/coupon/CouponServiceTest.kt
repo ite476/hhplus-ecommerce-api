@@ -15,6 +15,7 @@ import kr.hhplus.be.server.service.coupon.exception.UserCouponIsNotUsedButTriedT
 import kr.hhplus.be.server.service.coupon.port.CouponIssuancePort
 import kr.hhplus.be.server.service.coupon.port.CouponIssuanceResult
 import kr.hhplus.be.server.service.coupon.port.CouponPort
+import kr.hhplus.be.server.service.coupon.event.CouponEventKafkaProducer
 import kr.hhplus.be.server.service.coupon.service.CouponService
 import kr.hhplus.be.server.service.pagination.PagedList
 import kr.hhplus.be.server.service.pagination.PagingOptions
@@ -41,6 +42,9 @@ class CouponServiceTest : ServiceTestBase() {
     @MockK
     private lateinit var issuancePort: CouponIssuancePort
 
+    @MockK
+    private lateinit var couponEventProducer: CouponEventKafkaProducer
+
     private lateinit var couponService: CouponService
 
 
@@ -48,11 +52,13 @@ class CouponServiceTest : ServiceTestBase() {
     @BeforeEach
     fun setupCouponService() {
         super.setUp()
+        every { couponEventProducer.publish(any(), any()) } just Runs
         couponService = CouponService(
             couponPort = couponPort,
             couponIssuancePort = issuancePort,
             requireUserIdExistsUsecase = requireUserIdExistsUsecase,
-            timeProvider = timeProvider
+            timeProvider = timeProvider,
+            couponEventProducer = couponEventProducer
         )
     }
 
