@@ -1,31 +1,24 @@
-version: '3'
+version: '3.8'
 services:
   mysql:
-    image: mysql:8.0
-    ports:
-      - "23306:3306"
-    environment:
-      - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_USER=application
-      - MYSQL_PASSWORD=application
-      - MYSQL_DATABASE=hhplus
-    volumes:
-      - ./data/mysql/:/var/lib/mysql
+    extends:
+      file: docker/compose.mysql.yml
+      service: mysql
 
   redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "redis_pwd"]
-    environment:
-      - TZ=Asia/Seoul
-    volumes:
-      - ./data/redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis_pwd", "PING"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+    extends:
+      file: docker/compose.redis.yml
+      service: redis
+
+  kafka:
+    extends:
+      file: docker/compose.kafka.yml
+      service: kafka
+
+  kafka-ui:
+    extends:
+      file: docker/compose.kafka-ui.yml
+      service: kafka-ui
 
 networks:
   default:
