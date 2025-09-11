@@ -1,10 +1,11 @@
-INSERT INTO hhplus.product (created_at, updated_at, name, price, stock)
+INSERT INTO hhplus.product (created_at, updated_at, name, price, stock, `version`)
 SELECT
     NOW(6) AS created_at,
     NOW(6) AS updated_at,
     CONCAT('상품_', t.n) AS name,
     1000 + (t.n % 9000) AS price,
-    100 + (t.n % 1000) AS stock
+    100 + (t.n % 1000) AS stock,
+    0 AS `version`
 FROM (
     SELECT @row := @row + 1 AS n
     FROM (

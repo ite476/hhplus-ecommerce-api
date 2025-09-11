@@ -1,5 +1,6 @@
 package kr.hhplus.be.server.service.order.event
 
+import kotlinx.coroutines.runBlocking
 import kr.hhplus.be.server.repository.product.RedisPopularProductSummaryCacheDto
 import kr.hhplus.be.server.service.idempotency.IdempotencyPort
 import kr.hhplus.be.server.service.product.port.PopularProductPort
@@ -30,10 +31,10 @@ class OrderCreatedKafkaConsumer(
         topics = ["order.events"],
         containerFactory = "orderCreatedKafkaListenerContainerFactory"
     )
-    suspend fun onMessage(event: OrderCreated) {
+    fun onMessage(event: OrderCreated) = runBlocking {
         val key = processedKeyPrefix + event.eventId.toString()
         val ttl: Duration = idempotencyTtlSeconds.seconds
-        if (!idempotencyPort.tryAcquire(key, ttl)) return
+        if (!idempotencyPort.tryAcquire(key, ttl)) return@runBlocking
 
         val now = timeProvider.now()
         val maps: List<RedisPopularProductSummaryCacheDto> = event.order.orderItems.map { item ->

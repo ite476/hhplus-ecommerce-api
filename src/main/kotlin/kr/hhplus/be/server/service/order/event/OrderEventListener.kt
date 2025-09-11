@@ -1,5 +1,6 @@
 package kr.hhplus.be.server.service.order.event
 
+import kotlinx.coroutines.runBlocking
 import kr.hhplus.be.server.service.order.port.DataPlatformPort
 import kr.hhplus.be.server.service.product.port.PopularProductPort
 import kr.hhplus.be.server.service.transaction.CompensationScope
@@ -22,7 +23,7 @@ class OrderEventListener(
      */
     @Async
     @EventListener
-    suspend fun sendOrderToDataPlatformOnOrderCreated(event: OrderCreated) {
+    fun sendOrderToDataPlatformOnOrderCreated(event: OrderCreated) = runBlocking {
         runCatching {
             CompensationScope.runTransaction {
                 execute {

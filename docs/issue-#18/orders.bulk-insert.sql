@@ -13,7 +13,7 @@ START TRANSACTION;
 -- =====================================================
 -- 1단계: ORDER 테이블 벌크 인서트 (200만 건)
 -- =====================================================
-INSERT INTO hhplus.`order` (user_id, user_coupon_id, ordered_at, created_at, updated_at)
+INSERT INTO hhplus.`order` (user_id, user_coupon_id, ordered_at, created_at, updated_at, `version`)
 SELECT
     -- 사용자 ID: 1~10,000 사용자 순환 사용
     ((t.n - 1) % 10000) + 1 AS user_id,
@@ -33,7 +33,8 @@ SELECT
     ) + INTERVAL FLOOR(RAND() * 86400) SECOND AS ordered_at,
     
     NOW(6) AS created_at,
-    NOW(6) AS updated_at
+    NOW(6) AS updated_at,
+    0      AS `version`
 FROM (
     SELECT @row := @row + 1 AS n
     FROM (
@@ -72,7 +73,7 @@ COMMIT;
 -- =====================================================
 START TRANSACTION;
 
-INSERT INTO hhplus.order_item (order_id, product_id, unit_price, quantity, created_at, updated_at)
+INSERT INTO hhplus.order_item (order_id, product_id, unit_price, quantity, created_at, updated_at, `version`)
 SELECT
     -- Order ID: 방금 생성된 주문들의 ID 범위 사용
     -- 각 주문당 평균 2.5개 아이템 (1~5개 랜덤)
@@ -107,7 +108,8 @@ SELECT
     END AS quantity,
     
     NOW(6) AS created_at,
-    NOW(6) AS updated_at
+    NOW(6) AS updated_at,
+    0 AS `version`
 
 FROM (
     -- 각 주문당 아이템 생성을 위한 서브쿼리

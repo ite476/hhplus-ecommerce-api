@@ -1,0 +1,10 @@
+# 📝 Perf profile logging config
+# Use with: --spring.profiles.active=perf (or SPRING_PROFILES_ACTIVE=perf)
+
+logging:
+  file:
+    name: logs/app.log
+  level:
+    root: INFO
+
+

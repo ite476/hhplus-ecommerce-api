@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
 import org.springframework.kafka.core.ConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
-import org.springframework.kafka.support.serializer.JsonDeserializer
 
 @Configuration
 class KafkaConsumerConfig(
@@ -19,12 +18,8 @@ class KafkaConsumerConfig(
     fun orderCreatedConsumerFactory(): ConsumerFactory<String, OrderCreated> {
         val props = HashMap<String, Any>(kafkaProperties.buildConsumerProperties())
         props[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
-        props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = JsonDeserializer::class.java
-        val valueDeserializer = JsonDeserializer(OrderCreated::class.java).apply {
-            addTrustedPackages("kr.hhplus.be.server.*")
-            setUseTypeHeaders(false)
-        }
-        return DefaultKafkaConsumerFactory(props, StringDeserializer(), valueDeserializer)
+        // Rely on application.yml for JsonDeserializer configuration to avoid double configuration
+        return DefaultKafkaConsumerFactory(props)
     }
 
     @Bean
