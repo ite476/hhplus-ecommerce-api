@@ -20,6 +20,32 @@ services:
       file: docker/compose.kafka-ui.yml
       service: kafka-ui
 
+  loki:
+    extends:
+      file: docker/compose.monitoring.yml
+      service: loki
+
+  grafana:
+    extends:
+      file: docker/compose.monitoring.yml
+      service: grafana
+
+  promtail:
+    extends:
+      file: docker/compose.monitoring.yml
+      service: promtail
+
+  influxdb:
+    extends:
+      file: docker/compose.monitoring.yml
+      service: influxdb
+
 networks:
   default:
     driver: bridge
+
+volumes:
+  promtail-positions: {}
+  loki-data: {}
+  loki-wal: {}
+  influx-data: {}
