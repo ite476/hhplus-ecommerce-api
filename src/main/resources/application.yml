@@ -24,6 +24,22 @@ spring:
     port: 6379
     password: redis_pwd
 
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "kr.hhplus.be.server.*"
+        spring.json.value.default.type: "kr.hhplus.be.server.service.order.event.OrderCreated"
+      group-id: hhplus-order-consumer
+      auto-offset-reset: latest
+
 # 성능 분석용 로깅 설정
 logging:
   level:
@@ -40,6 +56,10 @@ logging:
     com.zaxxer.hikari: DEBUG
     # 트랜잭션 로깅
     org.springframework.transaction: DEBUG
+
+app:
+  idempotency:
+    event-ttl-seconds: 86400
 springdoc:
   api-docs:
     enabled: true

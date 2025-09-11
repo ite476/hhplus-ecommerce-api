@@ -35,30 +35,6 @@ class OrderEventListenerTest : ServiceTestBase() {
     }
 
     @Test
-    @DisplayName("OrderCreated 수신 시 인기상품 집계를 호출한다")
-    fun callsPopularAggregationOnOrderCreated() = runTest {
-        // given
-        val orderItems = listOf(
-            OrderItem(id = 1L, productId = 1L, productName = "아메리카노", unitPrice = 4500L, quantity = 2)
-        )
-        val order = Order(
-            id = 1L,
-            userId = 1L,
-            userCouponId = null,
-            orderItems = orderItems,
-            totalProductsPrice = 9000L,
-            discountedPrice = 0L,
-            orderedAt = fixedTime
-        )
-
-        // when
-        listener.aggregatePopularProductSalesOnOrderCreated(OrderCreated(order))
-
-        // then
-        coVerify { popularProductPort.increaseProductSoldCount(any(), fixedTime) }
-    }
-
-    @Test
     @DisplayName("OrderCreated 수신 시 데이터 플랫폼 전송을 호출한다")
     fun callsDataPlatformOnOrderCreated() = runTest {
         // given

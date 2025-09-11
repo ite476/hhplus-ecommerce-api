@@ -1,6 +1,9 @@
 package kr.hhplus.be.server.service.coupon.service
 
 import kr.hhplus.be.server.service.coupon.entity.UserCoupon
+import kr.hhplus.be.server.service.coupon.event.CouponIssued
+import kr.hhplus.be.server.service.coupon.event.CouponOutOfStock
+import kr.hhplus.be.server.service.coupon.event.CouponEventKafkaProducer
 import kr.hhplus.be.server.service.coupon.exception.*
 import kr.hhplus.be.server.service.coupon.port.CouponIssuancePort
 import kr.hhplus.be.server.service.coupon.port.CouponIssuanceResult
@@ -22,7 +25,8 @@ class CouponService (
     val couponPort: CouponPort,
     val couponIssuancePort: CouponIssuancePort,
     val requireUserIdExistsUsecase: RequiresUserIdExistsUsecase,
-    val timeProvider: KoreanTimeProvider
+    val timeProvider: KoreanTimeProvider,
+    val couponEventProducer: CouponEventKafkaProducer
     ) : FindUserCouponByIdUsecase,
     UseUserCouponUsecase,
     FindPagedUserCouponsUsecase,
@@ -76,7 +80,14 @@ class CouponService (
         when (decision) {
             CouponIssuanceResult.OK -> { /* proceed */ }
             CouponIssuanceResult.ALREADY_ISSUED -> throw CouponAlreadyIssuedException()
-            CouponIssuanceResult.OUT_OF_STOCK -> throw CouponOutOfStockException()
+            CouponIssuanceResult.OUT_OF_STOCK -> {
+                // 이벤트 발행 (비동기 관측/카운팅 용도)
+                couponEventProducer.publish(
+                    eventKey = couponId.toString(),
+                    event = CouponOutOfStock(couponId = couponId)
+                )
+                throw CouponOutOfStockException()
+            }
             CouponIssuanceResult.NOT_READY -> throw CouponNotReadyException()
         }
 
@@ -88,6 +99,16 @@ class CouponService (
                 couponPort.revokeCoupon(issuedUserCoupon = coupon, now = now)
             }
         }
+
+        // 발급 성공 이벤트 발행
+        couponEventProducer.publish(
+            eventKey = couponId.toString(),
+            event = CouponIssued(
+                couponId = couponId,
+                userId = userId,
+                issuedUserCouponId = issuedUserCoupon.id
+            )
+        )
 
         return issuedUserCoupon
     }
